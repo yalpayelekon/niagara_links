@@ -8,22 +8,21 @@ class BlockWidget extends StatelessWidget {
   final void Function()? onEndDrag;
   final void Function(String? blockId)? onHoverIn;
   final void Function(String blockId)? onAcceptLink;
-
   final void Function(Offset position) onPositionChanged;
-  final void Function(String blockId, Offset globalPosition)? onOutTap;
-  final void Function(String blockId)? onInTap;
+  final String? hoveringTargetBlockId; // Add this
+  final Offset? currentPointerPosition; // Add this
 
   const BlockWidget({
     super.key,
     required this.block,
     required this.onPositionChanged,
-    this.onOutTap,
-    this.onInTap,
     this.onStartDrag,
     this.onUpdateDrag,
     this.onEndDrag,
     this.onHoverIn,
     this.onAcceptLink,
+    this.hoveringTargetBlockId, // Add this
+    this.currentPointerPosition, // Add this
   });
 
   @override
@@ -52,6 +51,8 @@ class BlockWidget extends StatelessWidget {
                 ),
               ),
             ),
+            // Output port
+            // In BlockWidget's build method, update the output port GestureDetector:
             Positioned(
               right: -8,
               top: 32,
@@ -66,23 +67,23 @@ class BlockWidget extends StatelessWidget {
                   final global = box.localToGlobal(details.localPosition);
                   onUpdateDrag?.call(global);
                 },
-                onPanEnd: (_) => onEndDrag?.call(),
+                onPanEnd: (_) {
+                  if (hoveringTargetBlockId != null) {
+                    onAcceptLink?.call(hoveringTargetBlockId!);
+                  }
+                  onEndDrag?.call();
+                },
                 child: const PortCircle(),
               ),
             ),
+            // Input port
             Positioned(
               left: -8,
               top: 32,
-              child: DragTarget<String>(
-                builder: (context, candidateData, rejectedData) {
-                  return MouseRegion(
-                    onEnter: (_) => onHoverIn?.call(block.id),
-                    onExit: (_) => onHoverIn?.call(null),
-                    child: const PortCircle(),
-                  );
-                },
-                onWillAccept: (_) => true,
-                onAccept: (_) => onAcceptLink?.call(block.id),
+              child: MouseRegion(
+                onEnter: (_) => onHoverIn?.call(block.id),
+                onExit: (_) => onHoverIn?.call(null),
+                child: const PortCircle(),
               ),
             ),
           ],

@@ -1,0 +1,409 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:niagara_links/models/link.dart';
+import 'models/block.dart';
+import 'providers/block_provider.dart';
+import 'providers/link_provider.dart';
+import 'widgets/block_widget.dart';
+import 'package:uuid/uuid.dart';
+
+import 'widgets/link_painter.dart';
+
+void main() {
+  runApp(const ProviderScope(child: MyApp()));
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Drag and Drop Editor',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const EditorPage(),
+    );
+  }
+}
+
+class EditorPage extends ConsumerStatefulWidget {
+  const EditorPage({super.key});
+
+  @override
+  ConsumerState<EditorPage> createState() => _EditorPageState();
+}
+
+class _EditorPageState extends ConsumerState<EditorPage> {
+  String? draggingFromBlockId;
+  Offset? draggingFromPosition;
+  Offset? currentPointerPosition;
+  String? hoveringTargetBlockId;
+
+  @override
+  Widget build(BuildContext context) {
+    final blocks = ref.watch(blockListProvider);
+    final blockNotifier = ref.read(blockListProvider.notifier);
+    final links = ref.watch(linkListProvider);
+    final linkNotifier = ref.read(linkListProvider.notifier);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Niagara Style Editor'),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          final id = const Uuid().v4();
+          blockNotifier.addBlock(
+            Block(
+              id: id,
+              name: 'NumericWritable',
+              position: const Offset(100, 100),
+              dataType: DataType.number,
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
+      body: Stack(
+        children: [
+          CustomPaint(
+            size: Size.infinite,
+            painter: LinkPainter(
+              draggingFromPosition,
+              currentPointerPosition,
+              blocks: blocks,
+              links: links,
+            ),
+          ),
+          for (final block in blocks)
+            BlockWidget(
+              block: block,
+              onPositionChanged: (newPos) {
+                blockNotifier.updateBlockPosition(block.id, newPos);
+              },
+              onStartDrag: (blockId, globalPos) {
+                setState(() {
+                  draggingFromBlockId = blockId;
+                  draggingFromPosition = globalPos;
+                  currentPointerPosition = globalPos;
+                });
+              },
+              onUpdateDrag: (globalPos) {
+                setState(() {
+                  currentPointerPosition = globalPos;
+                });
+              },
+              onEndDrag: () {
+                if (hoveringTargetBlockId != null &&
+                    draggingFromBlockId != null) {
+                  linkNotifier.addLink(Link(
+                    id: const Uuid().v4(),
+                    fromBlockId: draggingFromBlockId!,
+                    fromPortId: 'out',
+                    toBlockId: hoveringTargetBlockId!,
+                    toPortId: 'in',
+                  ));
+                }
+                setState(() {
+                  draggingFromBlockId = null;
+                  draggingFromPosition = null;
+                  currentPointerPosition = null;
+                  hoveringTargetBlockId = null;
+                });
+              },
+              onHoverIn: (targetBlockId) {
+                print("targetBlockId: $targetBlockId");
+                setState(() {
+                  hoveringTargetBlockId = targetBlockId;
+                });
+              },
+              onAcceptLink: (_) {
+                print("onAcceptLink");
+              },
+              onOutTap: (blockId, globalPosition) {
+                print("onOutTap: $blockId, $globalPosition");
+                setState(() {
+                  draggingFromBlockId = blockId;
+                  draggingFromPosition = globalPosition;
+                });
+              },
+              onInTap: (blockId) {
+                print("onOutTap: $blockId");
+                if (draggingFromBlockId != null &&
+                    draggingFromBlockId != blockId) {
+                  linkNotifier.addLink(
+                    Link(
+                      id: const Uuid().v4(),
+                      fromBlockId: draggingFromBlockId!,
+                      fromPortId: 'out',
+                      toBlockId: blockId,
+                      toPortId: 'in',
+                    ),
+                  );
+                  setState(() {
+                    draggingFromBlockId = null;
+                    draggingFromPosition = null;
+                  });
+                }
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+
+enum DataType { number, string, boolean }
+
+class Block {
+  final String id;
+  final String name;
+  final Offset position;
+  final DataType dataType;
+
+  Block({
+    required this.id,
+    required this.name,
+    required this.position,
+    required this.dataType,
+  });
+
+  Block copyWith({
+    Offset? position,
+  }) {
+    return Block(
+      id: id,
+      name: name,
+      position: position ?? this.position,
+      dataType: dataType,
+    );
+  }
+}
+class Link {
+  final String id;
+  final String fromBlockId;
+  final String fromPortId; // use 'out' for now
+  final String toBlockId;
+  final String toPortId; // use 'in' for now
+
+  Link({
+    required this.id,
+    required this.fromBlockId,
+    required this.fromPortId,
+    required this.toBlockId,
+    required this.toPortId,
+  });
+}
+import 'dart:ui';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/block.dart';
+
+final blockListProvider = StateNotifierProvider<BlockListNotifier, List<Block>>(
+  (ref) => BlockListNotifier(),
+);
+
+class BlockListNotifier extends StateNotifier<List<Block>> {
+  BlockListNotifier() : super([]);
+
+  void addBlock(Block block) {
+    state = [...state, block];
+  }
+
+  void updateBlockPosition(String id, Offset newPosition) {
+    state = [
+      for (final block in state)
+        if (block.id == id) block.copyWith(position: newPosition) else block
+    ];
+  }
+}
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/link.dart';
+
+final linkListProvider = StateNotifierProvider<LinkListNotifier, List<Link>>(
+  (ref) => LinkListNotifier(),
+);
+
+class LinkListNotifier extends StateNotifier<List<Link>> {
+  LinkListNotifier() : super([]);
+
+  void addLink(Link link) {
+    state = [...state, link];
+  }
+
+  void removeLink(String id) {
+    state = state.where((l) => l.id != id).toList();
+  }
+}
+import 'package:flutter/material.dart';
+import '../models/block.dart';
+
+class BlockWidget extends StatelessWidget {
+  final Block block;
+  final void Function(String blockId, Offset position)? onStartDrag;
+  final void Function(Offset position)? onUpdateDrag;
+  final void Function()? onEndDrag;
+  final void Function(String? blockId)? onHoverIn;
+  final void Function(String blockId)? onAcceptLink;
+
+  final void Function(Offset position) onPositionChanged;
+  final void Function(String blockId, Offset globalPosition)? onOutTap;
+  final void Function(String blockId)? onInTap;
+
+  const BlockWidget({
+    super.key,
+    required this.block,
+    required this.onPositionChanged,
+    this.onOutTap,
+    this.onInTap,
+    this.onStartDrag,
+    this.onUpdateDrag,
+    this.onEndDrag,
+    this.onHoverIn,
+    this.onAcceptLink,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: block.position.dx,
+      top: block.position.dy,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          onPositionChanged(block.position + details.delta);
+        },
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 120,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.blueAccent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Text(
+                  block.name,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+            Positioned(
+              right: -8,
+              top: 32,
+              child: GestureDetector(
+                onPanStart: (details) {
+                  final box = context.findRenderObject() as RenderBox;
+                  final global = box.localToGlobal(details.localPosition);
+                  onStartDrag?.call(block.id, global);
+                },
+                onPanUpdate: (details) {
+                  final box = context.findRenderObject() as RenderBox;
+                  final global = box.localToGlobal(details.localPosition);
+                  onUpdateDrag?.call(global);
+                },
+                onPanEnd: (_) => onEndDrag?.call(),
+                child: const PortCircle(),
+              ),
+            ),
+            Positioned(
+              left: -8,
+              top: 32,
+              child: DragTarget<String>(
+                builder: (context, candidateData, rejectedData) {
+                  return MouseRegion(
+                    onEnter: (_) => onHoverIn?.call(block.id),
+                    onExit: (_) => onHoverIn?.call(null),
+                    child: const PortCircle(),
+                  );
+                },
+                onWillAccept: (_) => true,
+                onAccept: (_) => onAcceptLink?.call(block.id),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PortCircle extends StatelessWidget {
+  const PortCircle({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 16,
+      height: 16,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.black),
+      ),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+import '../models/link.dart';
+import '../models/block.dart';
+
+class LinkPainter extends CustomPainter {
+  final List<Block> blocks;
+  final List<Link> links;
+  final Offset? tempFrom;
+  final Offset? tempTo;
+  LinkPainter(
+    this.tempFrom,
+    this.tempTo, {
+    required this.blocks,
+    required this.links,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.orange
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    for (final link in links) {
+      final from = blocks.firstWhere((b) => b.id == link.fromBlockId);
+      final to = blocks.firstWhere((b) => b.id == link.toBlockId);
+
+      final fromOffset = from.position + const Offset(120, 40); // right middle
+      final toOffset = to.position + const Offset(0, 40); // left middle
+
+      final path = Path();
+      path.moveTo(fromOffset.dx, fromOffset.dy);
+      path.cubicTo(
+        fromOffset.dx + 40,
+        fromOffset.dy,
+        toOffset.dx - 40,
+        toOffset.dy,
+        toOffset.dx,
+        toOffset.dy,
+      );
+
+      if (tempFrom != null && tempTo != null) {
+        final tempPath = Path()
+          ..moveTo(tempFrom!.dx, tempFrom!.dy)
+          ..cubicTo(
+            tempFrom!.dx + 40,
+            tempFrom!.dy,
+            tempTo!.dx - 40,
+            tempTo!.dy,
+            tempTo!.dx,
+            tempTo!.dy,
+          );
+        canvas.drawPath(tempPath, paint..color = Colors.grey);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}

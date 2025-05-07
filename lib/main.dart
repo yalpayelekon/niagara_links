@@ -96,16 +96,6 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                 });
               },
               onEndDrag: () {
-                if (hoveringTargetBlockId != null &&
-                    draggingFromBlockId != null) {
-                  linkNotifier.addLink(Link(
-                    id: const Uuid().v4(),
-                    fromBlockId: draggingFromBlockId!,
-                    fromPortId: 'out',
-                    toBlockId: hoveringTargetBlockId!,
-                    toPortId: 'in',
-                  ));
-                }
                 setState(() {
                   draggingFromBlockId = null;
                   draggingFromPosition = null;
@@ -118,31 +108,20 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                   hoveringTargetBlockId = targetBlockId;
                 });
               },
-              onAcceptLink: (_) {},
-              onOutTap: (blockId, globalPosition) {
-                setState(() {
-                  draggingFromBlockId = blockId;
-                  draggingFromPosition = globalPosition;
-                });
-              },
-              onInTap: (blockId) {
+              onAcceptLink: (targetBlockId) {
                 if (draggingFromBlockId != null &&
-                    draggingFromBlockId != blockId) {
-                  linkNotifier.addLink(
-                    Link(
-                      id: const Uuid().v4(),
-                      fromBlockId: draggingFromBlockId!,
-                      fromPortId: 'out',
-                      toBlockId: blockId,
-                      toPortId: 'in',
-                    ),
-                  );
-                  setState(() {
-                    draggingFromBlockId = null;
-                    draggingFromPosition = null;
-                  });
+                    draggingFromBlockId != targetBlockId) {
+                  linkNotifier.addLink(Link(
+                    id: const Uuid().v4(),
+                    fromBlockId: draggingFromBlockId!,
+                    fromPortId: 'out',
+                    toBlockId: targetBlockId,
+                    toPortId: 'in',
+                  ));
                 }
               },
+              hoveringTargetBlockId: hoveringTargetBlockId,
+              currentPointerPosition: currentPointerPosition,
             ),
         ],
       ),

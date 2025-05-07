@@ -21,6 +21,7 @@ class LinkPainter extends CustomPainter {
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
+    // Draw permanent links
     for (final link in links) {
       final from = blocks.firstWhere((b) => b.id == link.fromBlockId);
       final to = blocks.firstWhere((b) => b.id == link.toBlockId);
@@ -38,20 +39,21 @@ class LinkPainter extends CustomPainter {
         toOffset.dx,
         toOffset.dy,
       );
+      canvas.drawPath(path, paint);
+    }
 
-      if (tempFrom != null && tempTo != null) {
-        final tempPath = Path()
-          ..moveTo(tempFrom!.dx, tempFrom!.dy)
-          ..cubicTo(
-            tempFrom!.dx + 40,
-            tempFrom!.dy,
-            tempTo!.dx - 40,
-            tempTo!.dy,
-            tempTo!.dx,
-            tempTo!.dy,
-          );
-        canvas.drawPath(tempPath, paint..color = Colors.grey);
-      }
+    if (tempFrom != null && currentPointerPosition != null) {
+      final tempPath = Path()
+        ..moveTo(tempFrom!.dx, tempFrom!.dy)
+        ..cubicTo(
+          tempFrom!.dx + 40,
+          tempFrom!.dy,
+          currentPointerPosition!.dx - 40,
+          currentPointerPosition!.dy,
+          currentPointerPosition!.dx,
+          currentPointerPosition!.dy,
+        );
+      canvas.drawPath(tempPath, paint..color = Colors.grey);
     }
   }
 
