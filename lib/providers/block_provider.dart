@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/block.dart';
 
@@ -17,7 +16,7 @@ class BlockListNotifier extends StateNotifier<List<Block>> {
   void updateBlockPosition(String id, Offset newPosition) {
     state = [
       for (final block in state)
-        if (block.id == id) block.copyWith(position: newPosition) else block,
+        if (block.id == id) block.copyWith(position: newPosition) else block
     ];
   }
 }

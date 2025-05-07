@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:niagara_links/models/link.dart';
 import 'models/block.dart';
 import 'providers/block_provider.dart';
 import 'providers/link_provider.dart';
 import 'widgets/block_widget.dart';
 import 'package:uuid/uuid.dart';
-import 'models/link.dart';
+
 import 'widgets/link_painter.dart';
 
 void main() {
@@ -19,7 +20,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Drag and Drop Editor',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
       home: const EditorPage(),
     );
   }
@@ -35,6 +38,8 @@ class EditorPage extends ConsumerStatefulWidget {
 class _EditorPageState extends ConsumerState<EditorPage> {
   String? draggingFromBlockId;
   Offset? draggingFromPosition;
+  Offset? currentPointerPosition;
+  String? hoveringTargetBlockId;
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +49,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     final linkNotifier = ref.read(linkListProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Niagara Style Editor')),
+      appBar: AppBar(
+        title: const Text('Niagara Style Editor'),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           final id = const Uuid().v4();
@@ -61,19 +68,57 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       ),
       body: Stack(
         children: [
-          // Connections painter
           CustomPaint(
             size: Size.infinite,
-            painter: LinkPainter(blocks: blocks, links: links),
+            painter: LinkPainter(
+              draggingFromPosition,
+              currentPointerPosition,
+              blocks: blocks,
+              links: links,
+            ),
           ),
-
-          // Blocks
           for (final block in blocks)
             BlockWidget(
               block: block,
               onPositionChanged: (newPos) {
                 blockNotifier.updateBlockPosition(block.id, newPos);
               },
+              onStartDrag: (blockId, globalPos) {
+                setState(() {
+                  draggingFromBlockId = blockId;
+                  draggingFromPosition = globalPos;
+                  currentPointerPosition = globalPos;
+                });
+              },
+              onUpdateDrag: (globalPos) {
+                setState(() {
+                  currentPointerPosition = globalPos;
+                });
+              },
+              onEndDrag: () {
+                if (hoveringTargetBlockId != null &&
+                    draggingFromBlockId != null) {
+                  linkNotifier.addLink(Link(
+                    id: const Uuid().v4(),
+                    fromBlockId: draggingFromBlockId!,
+                    fromPortId: 'out',
+                    toBlockId: hoveringTargetBlockId!,
+                    toPortId: 'in',
+                  ));
+                }
+                setState(() {
+                  draggingFromBlockId = null;
+                  draggingFromPosition = null;
+                  currentPointerPosition = null;
+                  hoveringTargetBlockId = null;
+                });
+              },
+              onHoverIn: (targetBlockId) {
+                setState(() {
+                  hoveringTargetBlockId = targetBlockId;
+                });
+              },
+              onAcceptLink: (_) {},
               onOutTap: (blockId, globalPosition) {
                 setState(() {
                   draggingFromBlockId = blockId;

@@ -5,16 +5,21 @@ import '../models/block.dart';
 class LinkPainter extends CustomPainter {
   final List<Block> blocks;
   final List<Link> links;
-
-  LinkPainter({required this.blocks, required this.links});
+  final Offset? tempFrom;
+  final Offset? tempTo;
+  LinkPainter(
+    this.tempFrom,
+    this.tempTo, {
+    required this.blocks,
+    required this.links,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = Colors.orange
-          ..strokeWidth = 2
-          ..style = PaintingStyle.stroke;
+    final paint = Paint()
+      ..color = Colors.orange
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
 
     for (final link in links) {
       final from = blocks.firstWhere((b) => b.id == link.fromBlockId);
@@ -34,7 +39,19 @@ class LinkPainter extends CustomPainter {
         toOffset.dy,
       );
 
-      canvas.drawPath(path, paint);
+      if (tempFrom != null && tempTo != null) {
+        final tempPath = Path()
+          ..moveTo(tempFrom!.dx, tempFrom!.dy)
+          ..cubicTo(
+            tempFrom!.dx + 40,
+            tempFrom!.dy,
+            tempTo!.dx - 40,
+            tempTo!.dy,
+            tempTo!.dx,
+            tempTo!.dy,
+          );
+        canvas.drawPath(tempPath, paint..color = Colors.grey);
+      }
     }
   }
 

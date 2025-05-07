@@ -15,7 +15,9 @@ class Block {
     required this.dataType,
   });
 
-  Block copyWith({Offset? position}) {
+  Block copyWith({
+    Offset? position,
+  }) {
     return Block(
       id: id,
       name: name,

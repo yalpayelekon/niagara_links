@@ -3,6 +3,12 @@ import '../models/block.dart';
 
 class BlockWidget extends StatelessWidget {
   final Block block;
+  final void Function(String blockId, Offset position)? onStartDrag;
+  final void Function(Offset position)? onUpdateDrag;
+  final void Function()? onEndDrag;
+  final void Function(String? blockId)? onHoverIn;
+  final void Function(String blockId)? onAcceptLink;
+
   final void Function(Offset position) onPositionChanged;
   final void Function(String blockId, Offset globalPosition)? onOutTap;
   final void Function(String blockId)? onInTap;
@@ -13,6 +19,11 @@ class BlockWidget extends StatelessWidget {
     required this.onPositionChanged,
     this.onOutTap,
     this.onInTap,
+    this.onStartDrag,
+    this.onUpdateDrag,
+    this.onEndDrag,
+    this.onHoverIn,
+    this.onAcceptLink,
   });
 
   @override
@@ -41,26 +52,37 @@ class BlockWidget extends StatelessWidget {
                 ),
               ),
             ),
-            // Output (right)
             Positioned(
               right: -8,
               top: 32,
               child: GestureDetector(
-                onTapDown: (details) {
-                  final RenderBox box = context.findRenderObject() as RenderBox;
+                onPanStart: (details) {
+                  final box = context.findRenderObject() as RenderBox;
                   final global = box.localToGlobal(details.localPosition);
-                  onOutTap?.call(block.id, global);
+                  onStartDrag?.call(block.id, global);
                 },
+                onPanUpdate: (details) {
+                  final box = context.findRenderObject() as RenderBox;
+                  final global = box.localToGlobal(details.localPosition);
+                  onUpdateDrag?.call(global);
+                },
+                onPanEnd: (_) => onEndDrag?.call(),
                 child: const PortCircle(),
               ),
             ),
-            // Input (left)
             Positioned(
               left: -8,
               top: 32,
-              child: GestureDetector(
-                onTap: () => onInTap?.call(block.id),
-                child: const PortCircle(),
+              child: DragTarget<String>(
+                builder: (context, candidateData, rejectedData) {
+                  return MouseRegion(
+                    onEnter: (_) => onHoverIn?.call(block.id),
+                    onExit: (_) => onHoverIn?.call(null),
+                    child: const PortCircle(),
+                  );
+                },
+                onWillAccept: (_) => true,
+                onAccept: (_) => onAcceptLink?.call(block.id),
               ),
             ),
           ],
