@@ -40,17 +40,9 @@ class LineConnectionPainter extends CustomPainter {
       ..strokeWidth = 2.0
       ..style = PaintingStyle.fill;
 
-    // Dashed line paint for the temporary line
     final dashedPaint = Paint()
       ..color = Colors.indigo[500]!
       ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    // Draw temp line background (slightly wider)
-    final tempLineBackgroundPaint = Paint()
-      ..color = Colors.white.withOpacity(0.5)
-      ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 

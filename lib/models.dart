@@ -12,7 +12,6 @@ class ItemConnection {
   });
 }
 
-// Added: Data class to track drag operation from port
 class PortDragInfo {
   final String itemId;
   final int rowIndex;
