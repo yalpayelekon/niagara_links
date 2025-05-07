@@ -14,9 +14,8 @@ class DraggableItem {
     required this.id,
     required this.position,
     this.color = Colors.blue,
-    this.numberOfRows =
-        _DraggableInteractiveLinesExampleState
-            .defaultNumberOfRows, // Using static const from state
+    this.numberOfRows = _DraggableInteractiveLinesExampleState
+        .defaultNumberOfRows, // Using static const from state
   });
 }
 
@@ -159,13 +158,11 @@ class _DraggableInteractiveLinesExampleState
     }
 
     // Check if this connection already exists
-    bool connectionExists = _connections.any(
-      (connection) =>
-          connection.fromItemId == source.itemId &&
-          connection.fromItemRowIndex == source.rowIndex &&
-          connection.toItemId == target.itemId &&
-          connection.toItemRowIndex == target.rowIndex,
-    );
+    bool connectionExists = _connections.any((connection) =>
+        connection.fromItemId == source.itemId &&
+        connection.fromItemRowIndex == source.rowIndex &&
+        connection.toItemId == target.itemId &&
+        connection.toItemRowIndex == target.rowIndex);
 
     if (!connectionExists) {
       setState(() {
@@ -197,12 +194,10 @@ class _DraggableInteractiveLinesExampleState
               setState(() {
                 final RenderBox? viewerChildRenderBox =
                     _interactiveViewerChildKey.currentContext
-                            ?.findRenderObject()
-                        as RenderBox?;
+                        ?.findRenderObject() as RenderBox?;
                 if (viewerChildRenderBox != null) {
-                  _tempLineEndPoint = viewerChildRenderBox.globalToLocal(
-                    details.globalPosition,
-                  );
+                  _tempLineEndPoint = viewerChildRenderBox
+                      .globalToLocal(details.globalPosition);
                 }
               });
             }
@@ -230,43 +225,41 @@ class _DraggableInteractiveLinesExampleState
               width: _canvasWidth,
               height: _canvasHeight,
               child: Stack(
-                children:
-                    _items.map((item) {
-                      return Positioned(
-                        left: item.position.dx,
-                        top: item.position.dy,
-                        child: Draggable<String>(
-                          data: item.id,
-                          feedback: Material(
-                            elevation: 5.0,
-                            color: Colors.transparent,
-                            child: _buildItemWidget(item, isFeedback: true),
-                          ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.3,
-                            child: _buildItemWidget(item),
-                          ),
-                          onDragEnd: (details) {
-                            final RenderBox? viewerChildRenderBox =
-                                _interactiveViewerChildKey.currentContext
-                                        ?.findRenderObject()
-                                    as RenderBox?;
+                children: _items.map((item) {
+                  return Positioned(
+                    left: item.position.dx,
+                    top: item.position.dy,
+                    child: Draggable<String>(
+                      data: item.id,
+                      feedback: Material(
+                        elevation: 5.0,
+                        color: Colors.transparent,
+                        child: _buildItemWidget(item, isFeedback: true),
+                      ),
+                      childWhenDragging: Opacity(
+                        opacity: 0.3,
+                        child: _buildItemWidget(item),
+                      ),
+                      onDragEnd: (details) {
+                        final RenderBox? viewerChildRenderBox =
+                            _interactiveViewerChildKey.currentContext
+                                ?.findRenderObject() as RenderBox?;
 
-                            if (viewerChildRenderBox != null) {
-                              final Offset localOffset = viewerChildRenderBox
-                                  .globalToLocal(details.offset);
-                              setState(() {
-                                final draggedItem = _findItemById(item.id);
-                                if (draggedItem != null) {
-                                  draggedItem.position = localOffset;
-                                }
-                              });
+                        if (viewerChildRenderBox != null) {
+                          final Offset localOffset = viewerChildRenderBox
+                              .globalToLocal(details.offset);
+                          setState(() {
+                            final draggedItem = _findItemById(item.id);
+                            if (draggedItem != null) {
+                              draggedItem.position = localOffset;
                             }
-                          },
-                          child: _buildItemWidget(item),
-                        ),
-                      );
-                    }).toList(),
+                          });
+                        }
+                      },
+                      child: _buildItemWidget(item),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ),
@@ -324,16 +317,15 @@ class _DraggableInteractiveLinesExampleState
       decoration: BoxDecoration(
         color: isFeedback ? item.color.withOpacity(0.85) : item.color,
         borderRadius: BorderRadius.circular(10),
-        boxShadow:
-            isFeedback
-                ? []
-                : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 5,
-                    offset: const Offset(2, 3),
-                  ),
-                ],
+        boxShadow: isFeedback
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 5,
+                  offset: const Offset(2, 3),
+                ),
+              ],
         border: Border.all(
           color: Colors.black.withOpacity(0.6),
           width: isFeedback ? 1.0 : 1.5,
@@ -344,8 +336,7 @@ class _DraggableInteractiveLinesExampleState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            height:
-                itemTitleSectionHeight -
+            height: itemTitleSectionHeight -
                 4, // Adjust for internal spacing/padding of title
             constraints: BoxConstraints(
               maxWidth: rowAreaWidth + 20,
@@ -384,30 +375,41 @@ class _DraggableInteractiveLinesExampleState
                   onAccept: (draggedPortInfo) {
                     // Create a connection from dragged port to this port
                     _createConnection(
-                      draggedPortInfo,
-                      PortDragInfo(item.id, index),
-                    );
+                        draggedPortInfo, PortDragInfo(item.id, index));
                   },
                   builder: (context, candidateData, rejectedData) {
                     // Changed: Wrap the port container with a draggable
                     return LongPressDraggable<PortDragInfo>(
                       data: PortDragInfo(item.id, index),
-                      // This custom feedback shows a circle at the port position
-                      feedback: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: Colors.indigo,
-                          shape: BoxShape.circle,
+                      // Show port row as feedback
+                      feedback: Material(
+                        elevation: 4.0,
+                        color: Colors.transparent,
+                        child: Container(
+                          width: rowAreaWidth,
+                          height: rowHeight,
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.withOpacity(0.2),
+                            border: Border.all(
+                              color: Colors.indigo,
+                              width: 1.0,
+                            ),
+                            borderRadius: BorderRadius.circular(3.0),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Port ${index + 1}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.indigo,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                       // When the drag starts, set the current dragged port
                       onDragStarted: () {
-                        final RenderBox? viewerChildRenderBox =
-                            _interactiveViewerChildKey.currentContext
-                                    ?.findRenderObject()
-                                as RenderBox?;
-
                         setState(() {
                           _currentDraggedPort = PortDragInfo(item.id, index);
                         });
@@ -429,38 +431,27 @@ class _DraggableInteractiveLinesExampleState
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(horizontal: 6.0),
                         decoration: BoxDecoration(
-                          color:
-                              (candidateData.isNotEmpty)
-                                  ? Colors.lightBlue.withOpacity(
-                                    0.3,
-                                  ) // Highlight when a port is dragged over
-                                  : null,
-                          border:
-                              (index < item.numberOfRows - 1)
-                                  ? Border(
-                                    bottom: BorderSide(
-                                      color: Colors.black.withOpacity(0.15),
-                                      width: 1.0,
-                                    ),
-                                  )
-                                  : null,
+                          color: (candidateData.isNotEmpty)
+                              ? Colors.lightBlue.withOpacity(
+                                  0.3) // Highlight when a port is dragged over
+                              : null,
+                          border: (index < item.numberOfRows - 1)
+                              ? Border(
+                                  bottom: BorderSide(
+                                    color: Colors.black.withOpacity(0.15),
+                                    width: 1.0,
+                                  ),
+                                )
+                              : null,
                         ),
                         child: Row(
                           children: [
-                            // Added: Visual port indicator
-                            Container(
-                              width: 8,
-                              height: 8,
-                              margin: const EdgeInsets.only(right: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.indigo.withOpacity(0.6),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.indigo.withOpacity(0.9),
-                                  width: 1.0,
-                                ),
-                              ),
+                            Icon(
+                              Icons.drag_indicator,
+                              size: 12,
+                              color: Colors.indigo.withOpacity(0.6),
                             ),
+                            const SizedBox(width: 4),
                             Text(
                               'Port ${index + 1}',
                               style: TextStyle(
@@ -508,26 +499,30 @@ class LineConnectionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = Colors.indigo[700]!
-          ..strokeWidth = 2.0
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round; // Rounded ends for lines
+    final paint = Paint()
+      ..color = Colors.indigo[700]!
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round; // Rounded ends for lines
 
-    final arrowPaint =
-        Paint()
-          ..color = Colors.indigo[700]!
-          ..strokeWidth = 2.0
-          ..style = PaintingStyle.fill;
+    final arrowPaint = Paint()
+      ..color = Colors.indigo[700]!
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.fill;
 
     // Dashed line paint for the temporary line
-    final dashedPaint =
-        Paint()
-          ..color = Colors.indigo[500]!
-          ..strokeWidth = 1.5
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round;
+    final dashedPaint = Paint()
+      ..color = Colors.indigo[500]!
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Draw temp line background (slightly wider)
+    final tempLineBackgroundPaint = Paint()
+      ..color = Colors.white.withOpacity(0.5)
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
     for (final connection in connections) {
       final DraggableItem? fromItem = findItemByIdCallback(
@@ -543,8 +538,7 @@ class LineConnectionPainter extends CustomPainter {
           final fromRenderBox = fromContext.findRenderObject() as RenderBox;
           fromX += fromRenderBox.size.width / 2;
         } else {
-          fromX +=
-              (_DraggableInteractiveLinesExampleState.rowAreaWidth +
+          fromX += (_DraggableInteractiveLinesExampleState.rowAreaWidth +
                   2 * itemExternalPadding) /
               2; // Fallback
         }
@@ -555,8 +549,7 @@ class LineConnectionPainter extends CustomPainter {
           final toRenderBox = toContext.findRenderObject() as RenderBox;
           toX += toRenderBox.size.width / 2;
         } else {
-          toX +=
-              (_DraggableInteractiveLinesExampleState.rowAreaWidth +
+          toX += (_DraggableInteractiveLinesExampleState.rowAreaWidth +
                   2 * itemExternalPadding) /
               2; // Fallback
         }
@@ -565,15 +558,13 @@ class LineConnectionPainter extends CustomPainter {
         // Y position of the top of the rows area (within the DraggableItem)
         final double fromRowsAreaStartY =
             fromItem.position.dy + itemExternalPadding + itemTitleSectionHeight;
-        final double fromConnectionY =
-            fromRowsAreaStartY +
+        final double fromConnectionY = fromRowsAreaStartY +
             (connection.fromItemRowIndex * rowHeight) +
             (rowHeight / 2);
 
         final double toRowsAreaStartY =
             toItem.position.dy + itemExternalPadding + itemTitleSectionHeight;
-        final double toConnectionY =
-            toRowsAreaStartY +
+        final double toConnectionY = toRowsAreaStartY +
             (connection.toItemRowIndex * rowHeight) +
             (rowHeight / 2);
 
@@ -608,9 +599,8 @@ class LineConnectionPainter extends CustomPainter {
 
     // Draw the temporary line while dragging
     if (tempLineStartInfo != null && tempLineEndPoint != null) {
-      final DraggableItem? fromItem = findItemByIdCallback(
-        tempLineStartInfo!.itemId,
-      );
+      final DraggableItem? fromItem =
+          findItemByIdCallback(tempLineStartInfo!.itemId);
 
       if (fromItem != null) {
         // Calculate start port position (similar to the logic above)
@@ -620,16 +610,14 @@ class LineConnectionPainter extends CustomPainter {
           final fromRenderBox = fromContext.findRenderObject() as RenderBox;
           fromX += fromRenderBox.size.width / 2;
         } else {
-          fromX +=
-              (_DraggableInteractiveLinesExampleState.rowAreaWidth +
+          fromX += (_DraggableInteractiveLinesExampleState.rowAreaWidth +
                   2 * itemExternalPadding) /
               2;
         }
 
         final double fromRowsAreaStartY =
             fromItem.position.dy + itemExternalPadding + itemTitleSectionHeight;
-        final double fromConnectionY =
-            fromRowsAreaStartY +
+        final double fromConnectionY = fromRowsAreaStartY +
             (tempLineStartInfo!.rowIndex * rowHeight) +
             (rowHeight / 2);
 
@@ -653,9 +641,21 @@ class LineConnectionPainter extends CustomPainter {
 
     final int dashCount = (distance / (dashWidth + dashSpace)).floor();
 
+    if (dashCount <= 0) return; // Guard against division by zero
+
     final double stepX = dx / dashCount;
     final double stepY = dy / dashCount;
 
+    // First draw a slightly wider white line as background for better visibility
+    final Paint bgPaint = Paint()
+      ..color = Colors.white.withOpacity(0.7)
+      ..strokeWidth = paint.strokeWidth + 1.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(start, end, bgPaint);
+
+    // Then draw the dashed line
     for (int i = 0; i < dashCount; i++) {
       final double startX =
           start.dx + i * (stepX + stepX * dashSpace / dashWidth);
