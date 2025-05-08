@@ -212,8 +212,6 @@ class DraggableInteractiveLinesExampleState
     );
   }
 
-  // In draggable_lines_screen.dart, modify the _buildItemWidget method
-
   Widget _buildItemWidget(DraggableItem item, {bool isFeedback = false}) {
     final double actualRowsContainerHeight = item.numberOfRows * rowHeight;
 
@@ -381,7 +379,6 @@ class DraggableInteractiveLinesExampleState
     );
   }
 
-// Add this method to implement the context menu
   void _showContextMenu(
       BuildContext context, Offset position, DraggableItem item) {
     final RenderBox overlay =
@@ -442,10 +439,8 @@ class DraggableInteractiveLinesExampleState
     });
   }
 
-// Add these methods to handle each action
   void _handleCopyItem(DraggableItem item) {
     setState(() {
-      // Create a new item with the same properties but at a slightly offset position
       final newItem = DraggableItem(
         id: '${item.id} (Copy)',
         position: Offset(item.position.dx + 20, item.position.dy + 20),
@@ -458,15 +453,12 @@ class DraggableInteractiveLinesExampleState
   }
 
   void _handleEditItem(BuildContext context, DraggableItem item) {
-    // Create a text editing controller with the current item ID
     TextEditingController itemIdController =
         TextEditingController(text: item.id);
 
-    // Create a controller for the number of rows
     TextEditingController rowsController =
         TextEditingController(text: item.numberOfRows.toString());
 
-    // Create a variable to store the selected color
     Color selectedColor = item.color;
 
     showDialog(
@@ -536,12 +528,10 @@ class DraggableInteractiveLinesExampleState
             ),
             TextButton(
               onPressed: () {
-                // Update the item with the new values
                 setState(() {
                   item.id = itemIdController.text;
                   item.color = selectedColor;
 
-                  // Parse the number of rows, with error handling
                   int? parsedRows = int.tryParse(rowsController.text);
                   if (parsedRows != null && parsedRows > 0) {
                     item.numberOfRows = parsedRows;
@@ -559,10 +549,7 @@ class DraggableInteractiveLinesExampleState
 
   void _handleDeleteItem(DraggableItem item) {
     setState(() {
-      // Remove the item from the list
       _items.removeWhere((i) => i.id == item.id);
-
-      // Remove any connections that involve this item
       _connections.removeWhere(
         (connection) =>
             connection.fromItemId == item.id || connection.toItemId == item.id,

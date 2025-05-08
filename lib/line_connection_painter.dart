@@ -11,8 +11,6 @@ class LineConnectionPainter extends CustomPainter {
   final double rowHeight;
   final double itemExternalPadding;
   final double itemTitleSectionHeight;
-
-  // Added: For drawing temporary line while dragging
   final PortDragInfo? tempLineStartInfo;
   final Offset? tempLineEndPoint;
 
