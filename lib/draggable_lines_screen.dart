@@ -212,163 +212,361 @@ class DraggableInteractiveLinesExampleState
     );
   }
 
+  // In draggable_lines_screen.dart, modify the _buildItemWidget method
+
   Widget _buildItemWidget(DraggableItem item, {bool isFeedback = false}) {
     final double actualRowsContainerHeight = item.numberOfRows * rowHeight;
 
-    return Container(
-      key: isFeedback ? null : item.widgetKey,
-      padding: const EdgeInsets.all(itemExternalPadding),
-      decoration: BoxDecoration(
-        color: isFeedback ? item.color.withOpacity(0.85) : item.color,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: isFeedback
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 5,
-                  offset: const Offset(2, 3),
-                ),
-              ],
-        border: Border.all(
-          color: Colors.black.withOpacity(0.6),
-          width: isFeedback ? 1.0 : 1.5,
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: itemTitleSectionHeight -
-                4, // Adjust for internal spacing/padding of title
-            constraints: BoxConstraints(
-              maxWidth: rowAreaWidth + 20,
-            ), // Ensure title doesn't overflow too much
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.only(
-              bottom: 4.0,
-            ), // Space between title and rows area
-            child: Text(
-              item.id,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+    return GestureDetector(
+      onSecondaryTapDown: isFeedback
+          ? null
+          : (details) {
+              _showContextMenu(context, details.globalPosition, item);
+            },
+      child: Container(
+        key: isFeedback ? null : item.widgetKey,
+        padding: const EdgeInsets.all(itemExternalPadding),
+        decoration: BoxDecoration(
+          color: isFeedback ? item.color.withOpacity(0.85) : item.color,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: isFeedback
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: const Offset(2, 3),
+                  ),
+                ],
+          border: Border.all(
+            color: Colors.black.withOpacity(0.6),
+            width: isFeedback ? 1.0 : 1.5,
           ),
-          Container(
-            width: rowAreaWidth,
-            height: actualRowsContainerHeight,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.black.withOpacity(0.25)),
-              color: Colors.white.withOpacity(isFeedback ? 0.3 : 0.5),
-              borderRadius: BorderRadius.circular(4),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: itemTitleSectionHeight -
+                  4, // Adjust for internal spacing/padding of title
+              constraints: BoxConstraints(
+                maxWidth: rowAreaWidth + 20,
+              ), // Ensure title doesn't overflow too much
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.only(
+                bottom: 4.0,
+              ), // Space between title and rows area
+              child: Text(
+                item.id,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            child: ListView.builder(
-              // Use ListView for potential scrolling if many rows
-              itemCount: item.numberOfRows,
-              physics:
-                  const NeverScrollableScrollPhysics(), // Disable scrolling for fixed rows
-              itemBuilder: (context, index) {
-                return DragTarget<PortDragInfo>(
-                  onAccept: (draggedPortInfo) {
-                    _createConnection(
-                        draggedPortInfo, PortDragInfo(item.id, index));
-                  },
-                  builder: (context, candidateData, rejectedData) {
-                    return LongPressDraggable<PortDragInfo>(
-                      data: PortDragInfo(item.id, index),
-                      feedback: Material(
-                        elevation: 4.0,
-                        color: Colors.transparent,
-                        child: Container(
-                          width: rowAreaWidth,
-                          height: rowHeight,
-                          decoration: BoxDecoration(
-                            color: Colors.indigo.withOpacity(0.2),
-                            border: Border.all(
-                              color: Colors.indigo,
-                              width: 1.0,
-                            ),
-                            borderRadius: BorderRadius.circular(3.0),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Port ${index + 1}',
-                              style: const TextStyle(
-                                fontSize: 10,
+            Container(
+              width: rowAreaWidth,
+              height: actualRowsContainerHeight,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.black.withOpacity(0.25)),
+                color: Colors.white.withOpacity(isFeedback ? 0.3 : 0.5),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: ListView.builder(
+                // Use ListView for potential scrolling if many rows
+                itemCount: item.numberOfRows,
+                physics:
+                    const NeverScrollableScrollPhysics(), // Disable scrolling for fixed rows
+                itemBuilder: (context, index) {
+                  return DragTarget<PortDragInfo>(
+                    onAccept: (draggedPortInfo) {
+                      _createConnection(
+                          draggedPortInfo, PortDragInfo(item.id, index));
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      return LongPressDraggable<PortDragInfo>(
+                        data: PortDragInfo(item.id, index),
+                        feedback: Material(
+                          elevation: 4.0,
+                          color: Colors.transparent,
+                          child: Container(
+                            width: rowAreaWidth,
+                            height: rowHeight,
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.withOpacity(0.2),
+                              border: Border.all(
                                 color: Colors.indigo,
-                                fontWeight: FontWeight.bold,
+                                width: 1.0,
+                              ),
+                              borderRadius: BorderRadius.circular(3.0),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Port ${index + 1}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.indigo,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      onDragStarted: () {
+                        onDragStarted: () {
+                          setState(() {
+                            _currentDraggedPort = PortDragInfo(item.id, index);
+                          });
+                        },
+                        onDragEnd: (details) {
+                          setState(() {
+                            _currentDraggedPort = null;
+                            _tempLineEndPoint = null;
+                          });
+                        },
+                        onDraggableCanceled: (velocity, offset) {
+                          setState(() {
+                            _currentDraggedPort = null;
+                            _tempLineEndPoint = null;
+                          });
+                        },
+                        child: Container(
+                          height: rowHeight,
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                          decoration: BoxDecoration(
+                            color: (candidateData.isNotEmpty)
+                                ? Colors.lightBlue.withOpacity(
+                                    0.3) // Highlight when a port is dragged over
+                                : null,
+                            border: (index < item.numberOfRows - 1)
+                                ? Border(
+                                    bottom: BorderSide(
+                                      color: Colors.black.withOpacity(0.15),
+                                      width: 1.0,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.drag_indicator,
+                                size: 12,
+                                color: Colors.indigo.withOpacity(0.6),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Port ${index + 1}',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  color: Colors.black.withOpacity(0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+// Add this method to implement the context menu
+  void _showContextMenu(
+      BuildContext context, Offset position, DraggableItem item) {
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(position, position),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'copy',
+          child: Row(
+            children: const [
+              Icon(Icons.copy, size: 18),
+              SizedBox(width: 8),
+              Text('Copy'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: const [
+              Icon(Icons.edit, size: 18),
+              SizedBox(width: 8),
+              Text('Edit'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: const [
+              Icon(Icons.delete, size: 18),
+              SizedBox(width: 8),
+              Text('Delete'),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+
+      switch (value) {
+        case 'copy':
+          _handleCopyItem(item);
+          break;
+        case 'edit':
+          _handleEditItem(context, item);
+          break;
+        case 'delete':
+          _handleDeleteItem(item);
+          break;
+      }
+    });
+  }
+
+// Add these methods to handle each action
+  void _handleCopyItem(DraggableItem item) {
+    setState(() {
+      // Create a new item with the same properties but at a slightly offset position
+      final newItem = DraggableItem(
+        id: '${item.id} (Copy)',
+        position: Offset(item.position.dx + 20, item.position.dy + 20),
+        color: item.color,
+        numberOfRows: item.numberOfRows,
+      );
+
+      _items.add(newItem);
+    });
+  }
+
+  void _handleEditItem(BuildContext context, DraggableItem item) {
+    // Create a text editing controller with the current item ID
+    TextEditingController itemIdController =
+        TextEditingController(text: item.id);
+
+    // Create a controller for the number of rows
+    TextEditingController rowsController =
+        TextEditingController(text: item.numberOfRows.toString());
+
+    // Create a variable to store the selected color
+    Color selectedColor = item.color;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Item'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: itemIdController,
+                  decoration: const InputDecoration(
+                    labelText: 'Item ID',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: rowsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Number of Rows',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('Color: '),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        // In a real app, you would show a color picker here
+                        // For simplicity, we're just cycling through some predefined colors
                         setState(() {
-                          _currentDraggedPort = PortDragInfo(item.id, index);
-                        });
-                      },
-                      onDragEnd: (details) {
-                        setState(() {
-                          _currentDraggedPort = null;
-                          _tempLineEndPoint = null;
-                        });
-                      },
-                      onDraggableCanceled: (velocity, offset) {
-                        setState(() {
-                          _currentDraggedPort = null;
-                          _tempLineEndPoint = null;
+                          if (selectedColor == Colors.lightBlue[100]) {
+                            selectedColor = Colors.tealAccent[100]!;
+                          } else if (selectedColor == Colors.tealAccent[100]) {
+                            selectedColor = Colors.purpleAccent[100]!;
+                          } else if (selectedColor ==
+                              Colors.purpleAccent[100]) {
+                            selectedColor = Colors.orangeAccent[100]!;
+                          } else {
+                            selectedColor = Colors.lightBlue[100]!;
+                          }
                         });
                       },
                       child: Container(
-                        height: rowHeight,
-                        alignment: Alignment.centerLeft,
-                        padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                        width: 24,
+                        height: 24,
                         decoration: BoxDecoration(
-                          color: (candidateData.isNotEmpty)
-                              ? Colors.lightBlue.withOpacity(
-                                  0.3) // Highlight when a port is dragged over
-                              : null,
-                          border: (index < item.numberOfRows - 1)
-                              ? Border(
-                                  bottom: BorderSide(
-                                    color: Colors.black.withOpacity(0.15),
-                                    width: 1.0,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.drag_indicator,
-                              size: 12,
-                              color: Colors.indigo.withOpacity(0.6),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Port ${index + 1}',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                color: Colors.black.withOpacity(0.8),
-                              ),
-                            ),
-                          ],
+                          color: selectedColor,
+                          border: Border.all(color: Colors.black),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                       ),
-                    );
-                  },
-                );
-              },
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                // Update the item with the new values
+                setState(() {
+                  item.id = itemIdController.text;
+                  item.color = selectedColor;
+
+                  // Parse the number of rows, with error handling
+                  int? parsedRows = int.tryParse(rowsController.text);
+                  if (parsedRows != null && parsedRows > 0) {
+                    item.numberOfRows = parsedRows;
+                  }
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  void _handleDeleteItem(DraggableItem item) {
+    setState(() {
+      // Remove the item from the list
+      _items.removeWhere((i) => i.id == item.id);
+
+      // Remove any connections that involve this item
+      _connections.removeWhere(
+        (connection) =>
+            connection.fromItemId == item.id || connection.toItemId == item.id,
+      );
+    });
   }
 }

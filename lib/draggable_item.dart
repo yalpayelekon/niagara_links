@@ -1,13 +1,15 @@
+// In lib/draggable_item.dart
+
 import 'package:flutter/material.dart';
 import 'package:niagara_links/draggable_lines_screen.dart';
 
 class DraggableItem {
-  final String id;
+  String id; // Changed from final to allow editing
   Offset position; // Top-left position of the item
-  final Color color;
+  Color color; // Changed from final to allow editing
   final GlobalKey widgetKey =
       GlobalKey(); // Key to get the size of the rendered widget
-  final int numberOfRows;
+  int numberOfRows; // Changed from final to allow editing
 
   DraggableItem({
     required this.id,
