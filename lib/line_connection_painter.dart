@@ -93,10 +93,6 @@ class LineConnectionPainter extends CustomPainter {
 
         canvas.drawLine(p1, p2, paint);
 
-        // Draw a small circle at the connection point on the "to" item's row
-        // to indicate directionality or endpoint more clearly.
-        // canvas.drawCircle(p2, 4, arrowPaint);
-        // Or draw an arrow head
         final double angle = atan2(p2.dy - p1.dy, p2.dx - p1.dx);
         const double arrowSize = 8;
         final Path path = Path();
@@ -117,13 +113,11 @@ class LineConnectionPainter extends CustomPainter {
       }
     }
 
-    // Draw the temporary line while dragging
     if (tempLineStartInfo != null && tempLineEndPoint != null) {
       final DraggableItem? fromItem =
           findItemByIdCallback(tempLineStartInfo!.itemId);
 
       if (fromItem != null) {
-        // Calculate start port position (similar to the logic above)
         double fromX = fromItem.position.dx;
         final fromContext = fromItem.widgetKey.currentContext;
         if (fromContext != null && fromContext.findRenderObject() != null) {
@@ -144,13 +138,11 @@ class LineConnectionPainter extends CustomPainter {
         Offset p1 = Offset(fromX, fromConnectionY);
         Offset p2 = tempLineEndPoint!;
 
-        // Draw dashed temporary line
         _drawDashedLine(canvas, p1, p2, dashedPaint);
       }
     }
   }
 
-  // Helper method to draw a dashed line
   void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
     const double dashWidth = 5;
     const double dashSpace = 3;

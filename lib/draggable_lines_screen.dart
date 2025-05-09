@@ -22,7 +22,7 @@ class DraggableInteractiveLinesExampleState
       130.0; // Width of the box containing rows/ports
 
   late List<DraggableItem> _items;
-  List<ItemConnection> _connections = [];
+  final List<ItemConnection> _connections = [];
   PortDragInfo? _currentDraggedPort;
   Offset? _tempLineEndPoint;
 
