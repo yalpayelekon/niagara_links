@@ -3,8 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'unified_models.dart';
-import 'unified_manager.dart';
+import 'models.dart';
+import 'manager.dart';
 import 'component_widget.dart';
 import 'connection_painter.dart';
 

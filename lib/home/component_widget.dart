@@ -1,6 +1,6 @@
 // lib/unified/component_widget.dart
 import 'package:flutter/material.dart';
-import 'unified_models.dart';
+import 'models.dart';
 
 class PortDragInfo {
   final String componentId;

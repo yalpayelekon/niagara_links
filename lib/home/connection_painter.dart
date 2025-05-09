@@ -1,9 +1,9 @@
 // lib/unified/connection_painter.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'unified_models.dart';
+import 'models.dart';
 import 'component_widget.dart';
-import 'unified_manager.dart';
+import 'manager.dart';
 
 class ConnectionPainter extends CustomPainter {
   final FlowManager flowManager;
