@@ -355,10 +355,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                 final Offset localOffset = viewerChildRenderBox
                                     .globalToLocal(details.offset);
 
-                                // Only create a command if the position actually changed
-                                if (_dragStartPosition != localOffset) {
+                                if (_dragStartPosition != null &&
+                                    _dragStartPosition != localOffset) {
                                   setState(() {
-                                    // Create a move command to track this change
                                     final command = MoveItemCommand(
                                       item.id,
                                       localOffset,
@@ -367,7 +366,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                     );
                                     _commandHistory.execute(command);
 
-                                    // Reset the drag start position
                                     _dragStartPosition = null;
                                   });
                                 }
@@ -688,7 +686,69 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  void _handleCopyItem(CalculatorItem item) {}
+  void _handleCopyItem(CalculatorItem item) {
+    // Create a new item with the same operation type
+    final newItem = CalculatorItem(
+      id: '${item.id} (Copy)',
+      operationType: item.operationType,
+    );
 
-  void _handleDeleteItem(CalculatorItem item) {}
+    // Copy values from original ports
+    for (int i = 0; i < item.ports.length && i < newItem.ports.length; i++) {
+      if (item.ports[i].isInput) {
+        newItem.ports[i].value = item.ports[i].value;
+      }
+    }
+
+    // Position the copy slightly offset from the original
+    final newPosition = Offset(
+      (_itemPositions[item.id]?.dx ?? 0) + 20,
+      (_itemPositions[item.id]?.dy ?? 0) + 20,
+    );
+
+    // Create a new key for the copied item
+    final newKey = GlobalKey();
+
+    Map<String, dynamic> state = {
+      'position': newPosition,
+      'key': newKey,
+      'positions': _itemPositions,
+      'keys': _itemKeys,
+    };
+
+    setState(() {
+      final command = AddItemCommand(_calculatorManager, newItem, state);
+      _commandHistory.execute(command);
+
+      // Set position and key directly since they're not handled in the command
+      _itemPositions[newItem.id] = newPosition;
+      _itemKeys[newItem.id] = newKey;
+    });
+  }
+
+  void _handleDeleteItem(CalculatorItem item) {
+    // Find all connections related to this item before removing
+    final affectedConnections = _calculatorManager.connections
+        .where((connection) =>
+            connection.fromItemId == item.id || connection.toItemId == item.id)
+        .toList();
+
+    setState(() {
+      final oldPosition = _itemPositions[item.id] ?? Offset.zero;
+      final oldKey = _itemKeys[item.id];
+
+      final command = RemoveItemCommand(
+        _calculatorManager,
+        item,
+        oldPosition,
+        oldKey,
+        affectedConnections,
+      );
+      _commandHistory.execute(command);
+
+      // Remove position and key entries
+      _itemPositions.remove(item.id);
+      _itemKeys.remove(item.id);
+    });
+  }
 }
