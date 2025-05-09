@@ -417,9 +417,154 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     });
   }
 
-  void _handleCopyItem(CalculatorItem item) {}
+  void _handleCopyItem(CalculatorItem item) {
+    setState(() {
+      // Create a new item with the same operation type
+      final newItem = CalculatorItem(
+        id: '${item.id} (Copy)',
+        operationType: item.operationType,
+      );
 
-  void _handleEditItem(BuildContext context, CalculatorItem item) {}
+      // Copy values from original ports
+      for (int i = 0; i < item.ports.length && i < newItem.ports.length; i++) {
+        if (item.ports[i].isInput) {
+          newItem.ports[i].value = item.ports[i].value;
+        }
+      }
 
-  void _handleDeleteItem(CalculatorItem item) {}
+      // Add the new item to the calculator manager
+      _calculatorManager.addItem(newItem);
+
+      // Position the copy slightly offset from the original
+      _itemPositions[newItem.id] = Offset(
+        (_itemPositions[item.id]?.dx ?? 0) + 20,
+        (_itemPositions[item.id]?.dy ?? 0) + 20,
+      );
+
+      // Create a new key for the copied item
+      _itemKeys[newItem.id] = GlobalKey();
+
+      // Calculate initial values for the new item
+      newItem.calculate();
+    });
+  }
+
+  void _handleEditItem(BuildContext context, CalculatorItem item) {
+    TextEditingController itemIdController =
+        TextEditingController(text: item.id);
+    OperationType selectedOperationType = item.operationType;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Edit Calculator Node'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: itemIdController,
+                      decoration: const InputDecoration(
+                        labelText: 'Node Name',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<OperationType>(
+                      value: selectedOperationType,
+                      decoration: const InputDecoration(
+                        labelText: 'Operation Type',
+                      ),
+                      items: OperationType.values.map((type) {
+                        String label;
+                        switch (type) {
+                          case OperationType.add:
+                            label = 'Addition (+)';
+                            break;
+                          case OperationType.subtract:
+                            label = 'Subtraction (-)';
+                            break;
+                          case OperationType.multiply:
+                            label = 'Multiplication (×)';
+                            break;
+                          case OperationType.divide:
+                            label = 'Division (÷)';
+                            break;
+                          case OperationType.input:
+                            label = 'Input Value';
+                            break;
+                        }
+
+                        return DropdownMenuItem<OperationType>(
+                          value: type,
+                          child: Text(label),
+                        );
+                      }).toList(),
+                      onChanged: (OperationType? value) {
+                        if (value != null) {
+                          setState(() {
+                            selectedOperationType = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // Apply changes and close dialog
+                    this.setState(() {
+                      // Store current port values before changing type
+                      Map<int, double> oldValues = {};
+                      for (var port in item.ports) {
+                        oldValues[port.index] = port.value;
+                      }
+
+                      // Update item properties
+                      item.id = itemIdController.text;
+
+                      // Change operation type if different
+                      if (item.operationType != selectedOperationType) {
+                        item.updateOperationType(selectedOperationType);
+
+                        // Copy over old values where possible
+                        for (var port in item.ports) {
+                          if (port.isInput &&
+                              oldValues.containsKey(port.index)) {
+                            port.value = oldValues[port.index]!;
+                          }
+                        }
+                      }
+
+                      _calculatorManager.recalculateAll();
+                    });
+
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _handleDeleteItem(CalculatorItem item) {
+    setState(() {
+      _calculatorManager.removeItem(item.id);
+
+      _itemPositions.remove(item.id);
+      _itemKeys.remove(item.id);
+    });
+  }
 }
