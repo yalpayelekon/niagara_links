@@ -1,6 +1,8 @@
 // lib/unified/component_widget.dart
 import 'package:flutter/material.dart';
-import 'models.dart';
+import 'package:niagara_links/models/component.dart';
+import 'package:niagara_links/models/enums.dart';
+import 'package:niagara_links/models/port.dart';
 
 class PortDragInfo {
   final String componentId;
@@ -18,14 +20,14 @@ class ComponentWidget extends StatefulWidget {
   final Function(PortDragInfo) onPortDragAccepted;
 
   const ComponentWidget({
-    Key? key,
+    super.key,
     required this.component,
     required this.widgetKey,
     required this.position,
     required this.onValueChanged,
     required this.onPortDragStarted,
     required this.onPortDragAccepted,
-  }) : super(key: key);
+  });
 
   @override
   State<ComponentWidget> createState() => _ComponentWidgetState();

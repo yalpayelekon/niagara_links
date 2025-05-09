@@ -1,6 +1,9 @@
 // lib/unified/connection_painter.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:niagara_links/models/component.dart';
+import 'package:niagara_links/models/enums.dart';
+import 'package:niagara_links/models/port.dart';
 import 'models.dart';
 import 'component_widget.dart';
 import 'manager.dart';
@@ -226,7 +229,7 @@ class ConnectionPainter extends CustomPainter {
       case PortType.string:
         borderColor = Colors.orange.withOpacity(0.6);
         displayValue =
-            '"${(port.value as String).length > 3 ? (port.value as String).substring(0, 3) + '...' : port.value as String}"';
+            '"${(port.value as String).length > 3 ? '${(port.value as String).substring(0, 3)}...' : port.value as String}"';
         break;
       case PortType.any:
         borderColor = Colors.purple.withOpacity(0.6);

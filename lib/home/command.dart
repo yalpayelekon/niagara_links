@@ -1,25 +1,12 @@
 // lib/home/command.dart
 
 import 'dart:ui';
+import 'package:niagara_links/models/command.dart';
+import 'package:niagara_links/models/component.dart';
+import 'package:niagara_links/models/enums.dart';
+
 import 'models.dart';
 import 'manager.dart';
-
-/// Base class for commands that can be undone and redone
-abstract class Command {
-  /// Execute the command
-  void execute();
-
-  /// Undo the command
-  void undo();
-
-  /// Redo the command (typically just calls execute)
-  void redo() {
-    execute();
-  }
-
-  /// Description of the command for UI purposes
-  String get description;
-}
 
 /// Command for adding a component
 class AddComponentCommand extends Command {
@@ -133,7 +120,7 @@ class CreateConnectionCommand extends Command {
   }
 
   @override
-  String get description => 'Connect ${fromComponentId}→${toComponentId}';
+  String get description => 'Connect $fromComponentId→$toComponentId';
 }
 
 /// Command for updating a port value
@@ -163,7 +150,7 @@ class UpdatePortValueCommand extends Command {
   }
 
   @override
-  String get description => 'Change ${componentId} value';
+  String get description => 'Change $componentId value';
 }
 
 /// Command for moving a component
@@ -191,7 +178,7 @@ class MoveComponentCommand extends Command {
   }
 
   @override
-  String get description => 'Move ${componentId}';
+  String get description => 'Move $componentId';
 }
 
 class EditComponentCommand extends Command {
@@ -407,11 +394,10 @@ class EditComponentCommand extends Command {
 
   @override
   String get description => oldType != newType
-      ? 'Edit ${oldId} type and name'
-      : 'Rename ${oldId} to ${newId}';
+      ? 'Edit $oldId type and name'
+      : 'Rename $oldId to $newId';
 }
 
-/// Command history manager to track undo/redo operations
 class CommandHistory {
   final List<Command> _undoStack = [];
   final List<Command> _redoStack = [];
@@ -426,10 +412,8 @@ class CommandHistory {
     command.execute();
     _undoStack.add(command);
 
-    // Clear redo stack when new command is executed
     _redoStack.clear();
 
-    // Limit history size
     if (_undoStack.length > _maxHistorySize) {
       _undoStack.removeAt(0);
     }

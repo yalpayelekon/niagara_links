@@ -3,7 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'models.dart';
+import 'package:niagara_links/models/component.dart';
+import '../models/enums.dart';
 import 'manager.dart';
 import 'component_widget.dart';
 import 'connection_painter.dart';
