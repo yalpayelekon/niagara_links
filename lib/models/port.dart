@@ -1,5 +1,3 @@
-// lib/unified/unified_models.dart
-
 import 'package:niagara_links/models/enums.dart';
 
 class Port {
@@ -17,7 +15,6 @@ class Port {
     this.value,
   });
 
-  // Initialize with default values based on type
   factory Port.withDefaultValue({
     required bool isInput,
     required int index,

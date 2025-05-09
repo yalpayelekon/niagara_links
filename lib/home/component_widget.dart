@@ -1,4 +1,3 @@
-// lib/unified/component_widget.dart
 import 'package:flutter/material.dart';
 import 'package:niagara_links/models/component.dart';
 import 'package:niagara_links/models/enums.dart';
@@ -459,7 +458,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
     }
   }
 
-  // lib/unified/component_widget.dart (continued)
   Color _getComponentTextColor() {
     switch (widget.component.type) {
       // Logic gates - blue family

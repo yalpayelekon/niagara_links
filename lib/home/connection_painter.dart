@@ -1,10 +1,9 @@
-// lib/unified/connection_painter.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:niagara_links/models/component.dart';
+import 'package:niagara_links/models/connection.dart';
 import 'package:niagara_links/models/enums.dart';
 import 'package:niagara_links/models/port.dart';
-import 'models.dart';
 import 'component_widget.dart';
 import 'manager.dart';
 

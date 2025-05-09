@@ -1,9 +1,8 @@
-// lib/unified/unified_manager.dart
 import 'package:niagara_links/models/component.dart';
+import 'package:niagara_links/models/connection.dart';
+import 'package:niagara_links/models/connection_endpoint.dart';
 import 'package:niagara_links/models/enums.dart';
 import 'package:niagara_links/models/port.dart';
-
-import 'models.dart';
 
 class FlowManager {
   List<Component> components = [];

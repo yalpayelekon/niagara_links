@@ -1,4 +1,4 @@
-import 'package:niagara_links/home/models.dart';
+import 'package:niagara_links/models/connection_endpoint.dart';
 import 'package:niagara_links/models/enums.dart';
 import 'package:niagara_links/models/port.dart';
 
@@ -15,7 +15,6 @@ class Component {
     _setupPorts();
   }
 
-  // Set up ports based on component type
   void _setupPorts() {
     ports.clear();
 

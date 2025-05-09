@@ -1,14 +1,11 @@
-// lib/home/command.dart
-
 import 'dart:ui';
 import 'package:niagara_links/models/command.dart';
 import 'package:niagara_links/models/component.dart';
+import 'package:niagara_links/models/connection.dart';
 import 'package:niagara_links/models/enums.dart';
 
-import 'models.dart';
 import 'manager.dart';
 
-/// Command for adding a component
 class AddComponentCommand extends Command {
   final FlowManager flowManager;
   final Component component;
@@ -387,7 +384,6 @@ class EditComponentCommand extends Command {
         }
       }
 
-      // Recalculate
       flowManager.recalculateAll();
     }
   }
