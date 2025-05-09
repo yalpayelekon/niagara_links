@@ -205,7 +205,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    _buildTypeIndicator(port.type),
+                    buildTypeIndicator(port.type),
                   ],
                 ),
                 _buildValueDisplay(port),
@@ -214,36 +214,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildTypeIndicator(PortType type) {
-    IconData icon;
-    Color color;
-
-    switch (type) {
-      case PortType.boolean:
-        icon = Icons.toggle_on_outlined;
-        color = Colors.indigo;
-        break;
-      case PortType.number:
-        icon = Icons.numbers;
-        color = Colors.green;
-        break;
-      case PortType.string:
-        icon = Icons.text_fields;
-        color = Colors.orange;
-        break;
-      case PortType.any:
-        icon = Icons.all_inclusive;
-        color = Colors.purple;
-        break;
-    }
-
-    return Icon(
-      icon,
-      color: color,
-      size: 12,
     );
   }
 

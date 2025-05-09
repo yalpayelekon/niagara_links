@@ -714,7 +714,7 @@ class _FlowScreenState extends State<FlowScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Component Type',
                 ),
-                items: _getCompatibleTypes(component.type).map((type) {
+                items: getCompatibleTypes(component.type).map((type) {
                   return DropdownMenuItem<ComponentType>(
                     value: type,
                     child: Text(getNameForComponentType(type)),
@@ -782,56 +782,6 @@ class _FlowScreenState extends State<FlowScreen> {
 
   // Get a list of component types that are compatible with the current type
   // (i.e., they have similar port structures)
-  List<ComponentType> _getCompatibleTypes(ComponentType currentType) {
-    // Group types by their port structure for compatibility
-    switch (currentType) {
-      // 2-input, 1-output boolean components
-      case ComponentType.andGate:
-      case ComponentType.orGate:
-      case ComponentType.xorGate:
-        return [
-          ComponentType.andGate,
-          ComponentType.orGate,
-          ComponentType.xorGate,
-        ];
-
-      // 1-input, 1-output boolean components
-      case ComponentType.notGate:
-        return [ComponentType.notGate];
-
-      // 2-input, 1-output math components
-      case ComponentType.add:
-      case ComponentType.subtract:
-      case ComponentType.multiply:
-      case ComponentType.divide:
-        return [
-          ComponentType.add,
-          ComponentType.subtract,
-          ComponentType.multiply,
-          ComponentType.divide,
-        ];
-
-      // 2-input, 1-output comparison components
-      case ComponentType.isGreaterThan:
-      case ComponentType.isLessThan:
-        return [
-          ComponentType.isGreaterThan,
-          ComponentType.isLessThan,
-        ];
-
-      // Comparison with any type
-      case ComponentType.isEqual:
-        return [ComponentType.isEqual];
-
-      // Single input components (by type)
-      case ComponentType.booleanInput:
-        return [ComponentType.booleanInput];
-      case ComponentType.numberInput:
-        return [ComponentType.numberInput];
-      case ComponentType.stringInput:
-        return [ComponentType.stringInput];
-    }
-  }
 
   void _handleDeleteComponent(Component component) {
     final affectedConnections = _flowManager.connections

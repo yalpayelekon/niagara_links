@@ -99,6 +99,36 @@ Color getComponentTextColor(Component component) {
   }
 }
 
+Widget buildTypeIndicator(PortType type) {
+  IconData icon;
+  Color color;
+
+  switch (type) {
+    case PortType.boolean:
+      icon = Icons.toggle_on_outlined;
+      color = Colors.indigo;
+      break;
+    case PortType.number:
+      icon = Icons.numbers;
+      color = Colors.green;
+      break;
+    case PortType.string:
+      icon = Icons.text_fields;
+      color = Colors.orange;
+      break;
+    case PortType.any:
+      icon = Icons.all_inclusive;
+      color = Colors.purple;
+      break;
+  }
+
+  return Icon(
+    icon,
+    color: color,
+    size: 12,
+  );
+}
+
 IconData getIconForComponentType(ComponentType type) {
   switch (type) {
     case ComponentType.andGate:
@@ -168,5 +198,56 @@ String getNameForComponentType(ComponentType type) {
       return 'Number';
     case ComponentType.stringInput:
       return 'String';
+  }
+}
+
+List<ComponentType> getCompatibleTypes(ComponentType currentType) {
+  // Group types by their port structure for compatibility
+  switch (currentType) {
+    // 2-input, 1-output boolean components
+    case ComponentType.andGate:
+    case ComponentType.orGate:
+    case ComponentType.xorGate:
+      return [
+        ComponentType.andGate,
+        ComponentType.orGate,
+        ComponentType.xorGate,
+      ];
+
+    // 1-input, 1-output boolean components
+    case ComponentType.notGate:
+      return [ComponentType.notGate];
+
+    // 2-input, 1-output math components
+    case ComponentType.add:
+    case ComponentType.subtract:
+    case ComponentType.multiply:
+    case ComponentType.divide:
+      return [
+        ComponentType.add,
+        ComponentType.subtract,
+        ComponentType.multiply,
+        ComponentType.divide,
+      ];
+
+    // 2-input, 1-output comparison components
+    case ComponentType.isGreaterThan:
+    case ComponentType.isLessThan:
+      return [
+        ComponentType.isGreaterThan,
+        ComponentType.isLessThan,
+      ];
+
+    // Comparison with any type
+    case ComponentType.isEqual:
+      return [ComponentType.isEqual];
+
+    // Single input components (by type)
+    case ComponentType.booleanInput:
+      return [ComponentType.booleanInput];
+    case ComponentType.numberInput:
+      return [ComponentType.numberInput];
+    case ComponentType.stringInput:
+      return [ComponentType.stringInput];
   }
 }
