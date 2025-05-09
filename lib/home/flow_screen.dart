@@ -1,6 +1,6 @@
 // lib/home/flow_screen.dart
 import 'dart:math';
-
+import 'package:vector_math/vector_math_64.dart' as vector_math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:niagara_links/models/command_history.dart';
@@ -43,9 +43,6 @@ class _FlowScreenState extends State<FlowScreen> {
   final TransformationController _transformationController =
       TransformationController();
   final GlobalKey _interactiveViewerChildKey = GlobalKey();
-
-  final double _canvasWidth = 1500.0;
-  final double _canvasHeight = 1000.0;
 
   @override
   void initState() {
@@ -290,7 +287,10 @@ class _FlowScreenState extends State<FlowScreen> {
             ),
             body: InteractiveViewer(
               transformationController: _transformationController,
-              boundaryMargin: EdgeInsets.all(_canvasWidth / 1.5),
+              constrained:
+                  false, // Add this line to allow content to be larger than viewport
+              boundaryMargin: const EdgeInsets.all(
+                  double.infinity), // Allow infinite panning
               minScale: 0.1,
               maxScale: 3.0,
               child: GestureDetector(
@@ -322,9 +322,10 @@ class _FlowScreenState extends State<FlowScreen> {
                     tempLineStartInfo: _currentDraggedPort,
                     tempLineEndPoint: _tempLineEndPoint,
                   ),
-                  child: SizedBox(
-                    width: _canvasWidth,
-                    height: _canvasHeight,
+                  child: Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Colors.grey[100], // Optional: add a background color
                     child: Stack(
                       children: _flowManager.components.map((component) {
                         return Positioned(
@@ -543,24 +544,30 @@ class _FlowScreenState extends State<FlowScreen> {
       type: type,
     );
 
-    // Find a good position - center of screen plus some random offset
-    final RenderBox? viewerChildRenderBox =
-        _interactiveViewerChildKey.currentContext?.findRenderObject()
-            as RenderBox?;
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final Size size = renderBox.size;
+    final Offset screenCenter = Offset(size.width / 2, size.height / 2);
 
-    Offset screenCenter = Offset(_canvasWidth / 2, _canvasHeight / 2);
-    if (viewerChildRenderBox != null) {
-      // Adjust for current transformation
-      screenCenter = viewerChildRenderBox.localToGlobal(Offset.zero);
-    }
+    final Matrix4 transform = _transformationController.value.clone();
+    final Matrix4 inverseTransform = Matrix4.inverted(transform);
+    final vector_math.Vector3 untransformed =
+        inverseTransform.transform3(vector_math.Vector3(
+      screenCenter.dx,
+      screenCenter.dy,
+      0.0,
+    ));
 
+    // Use the untransformed coordinates as the center point for new component
+    final Offset canvasCenter = Offset(untransformed.x, untransformed.y);
+
+    // Add random offset around the viewport center
     final random = Random();
     final randomOffset = Offset(
       (random.nextDouble() * 200) - 100,
       (random.nextDouble() * 200) - 100,
     );
 
-    final newPosition = screenCenter + randomOffset;
+    final newPosition = canvasCenter + randomOffset;
     final newKey = GlobalKey();
 
     Map<String, dynamic> state = {
@@ -574,7 +581,6 @@ class _FlowScreenState extends State<FlowScreen> {
       final command = AddComponentCommand(_flowManager, newComponent, state);
       _commandHistory.execute(command);
 
-      // Set position and key directly since they're not handled in the command execution
       _componentPositions[newComponent.id] = newPosition;
       _componentKeys[newComponent.id] = newKey;
     });
