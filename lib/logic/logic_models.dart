@@ -1,4 +1,6 @@
-enum OperationType {
+// lib/logic/logic_models.dart
+
+enum LogicOperationType {
   and,
   or,
   xor,
@@ -18,14 +20,14 @@ class LogicPort {
   });
 }
 
-class CalculatorItem {
+class LogicItem {
   String id;
-  OperationType operationType;
+  LogicOperationType operationType;
   List<LogicPort> ports = [];
 
-  Map<int, ConnectionEndpoint> inputConnections = {};
+  Map<int, LogicConnectionEndpoint> inputConnections = {};
 
-  CalculatorItem({
+  LogicItem({
     required this.id,
     required this.operationType,
   }) {
@@ -36,17 +38,17 @@ class CalculatorItem {
     ports.clear();
 
     switch (operationType) {
-      case OperationType.and:
-      case OperationType.or:
-      case OperationType.xor:
+      case LogicOperationType.and:
+      case LogicOperationType.or:
+      case LogicOperationType.xor:
         ports.add(LogicPort(isInput: true, index: 0)); // Input A
         ports.add(LogicPort(isInput: true, index: 1)); // Input B
         ports.add(LogicPort(isInput: false, index: 2)); // Output
         break;
-      case OperationType.input:
+      case LogicOperationType.input:
         ports.add(LogicPort(isInput: false, index: 0)); // Output
         break;
-      case OperationType.not:
+      case LogicOperationType.not:
         ports.add(LogicPort(isInput: true, index: 0)); // Input
         ports.add(LogicPort(isInput: false, index: 1)); // Output
         break;
@@ -54,15 +56,15 @@ class CalculatorItem {
   }
 
   void calculate() {
-    if (operationType == OperationType.input) {
+    if (operationType == LogicOperationType.input) {
       // Input nodes don't need calculation
       return;
     }
 
-    if (operationType == OperationType.not) {
+    if (operationType == LogicOperationType.not) {
       bool input = ports[0].value;
       bool result = !input;
-      ports[1].value = result;
+      ports.firstWhere((port) => !port.isInput).value = result;
       return;
     }
 
@@ -71,13 +73,13 @@ class CalculatorItem {
     bool result = false;
 
     switch (operationType) {
-      case OperationType.and:
+      case LogicOperationType.and:
         result = inputA && inputB;
         break;
-      case OperationType.or:
+      case LogicOperationType.or:
         result = inputA || inputB;
         break;
-      case OperationType.xor:
+      case LogicOperationType.xor:
         result = inputA != inputB;
         break;
       default:
@@ -87,18 +89,44 @@ class CalculatorItem {
     ports.firstWhere((port) => !port.isInput).value = result;
   }
 
-  void updateOperationType(OperationType newType) {
+  void updateOperationType(LogicOperationType newType) {
     operationType = newType;
     _setupPorts();
   }
 }
 
-class ConnectionEndpoint {
+class LogicConnectionEndpoint {
   final String itemId;
   final int portIndex;
 
-  ConnectionEndpoint({
+  LogicConnectionEndpoint({
     required this.itemId,
     required this.portIndex,
   });
+}
+
+// Now let's create the LogicConnection class
+
+class LogicConnection {
+  final String fromItemId;
+  final int fromPortIndex;
+  final String toItemId;
+  final int toPortIndex;
+
+  LogicConnection({
+    required this.fromItemId,
+    required this.fromPortIndex,
+    required this.toItemId,
+    required this.toPortIndex,
+  });
+
+  // Check if this connection comes from a specific item and port
+  bool isFromItem(String itemId, int portIndex) {
+    return fromItemId == itemId && fromPortIndex == portIndex;
+  }
+
+  // Check if this connection goes to a specific item and port
+  bool isToItem(String itemId, int portIndex) {
+    return toItemId == itemId && toPortIndex == portIndex;
+  }
 }
