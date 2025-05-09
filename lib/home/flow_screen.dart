@@ -3,12 +3,14 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:niagara_links/models/command_history.dart';
 import 'package:niagara_links/models/component.dart';
 import '../models/enums.dart';
 import 'manager.dart';
 import 'component_widget.dart';
 import 'connection_painter.dart';
 import 'command.dart';
+import 'utils.dart';
 
 // Custom intents for undo/redo actions
 class UndoIntent extends Intent {
@@ -30,10 +32,8 @@ class _FlowScreenState extends State<FlowScreen> {
   final FlowManager _flowManager = FlowManager();
   final CommandHistory _commandHistory = CommandHistory();
 
-  // Item positions
   final Map<String, Offset> _componentPositions = {};
 
-  // Keys for widgets
   final Map<String, GlobalKey> _componentKeys = {};
 
   PortDragInfo? _currentDraggedPort;
@@ -513,9 +513,9 @@ class _FlowScreenState extends State<FlowScreen> {
                 ),
                 child: Column(
                   children: [
-                    Icon(_getIconForComponentType(type)),
+                    Icon(getIconForComponentType(type)),
                     const SizedBox(height: 4.0),
-                    Text(_getNameForComponentType(type)),
+                    Text(getNameForComponentType(type)),
                   ],
                 ),
               ),
@@ -526,81 +526,9 @@ class _FlowScreenState extends State<FlowScreen> {
     );
   }
 
-  IconData _getIconForComponentType(ComponentType type) {
-    switch (type) {
-      case ComponentType.andGate:
-        return Icons.call_merge;
-      case ComponentType.orGate:
-        return Icons.call_split;
-      case ComponentType.xorGate:
-        return Icons.shuffle;
-      case ComponentType.notGate:
-        return Icons.block;
-
-      case ComponentType.add:
-        return Icons.add;
-      case ComponentType.subtract:
-        return Icons.remove;
-      case ComponentType.multiply:
-        return Icons.close;
-      case ComponentType.divide:
-        return Icons.expand;
-
-      case ComponentType.isGreaterThan:
-        return Icons.navigate_next;
-      case ComponentType.isLessThan:
-        return Icons.navigate_before;
-      case ComponentType.isEqual:
-        return Icons.drag_handle;
-
-      case ComponentType.booleanInput:
-        return Icons.toggle_on;
-      case ComponentType.numberInput:
-        return Icons.numbers;
-      case ComponentType.stringInput:
-        return Icons.text_fields;
-    }
-  }
-
-  String _getNameForComponentType(ComponentType type) {
-    switch (type) {
-      case ComponentType.andGate:
-        return 'AND Gate';
-      case ComponentType.orGate:
-        return 'OR Gate';
-      case ComponentType.xorGate:
-        return 'XOR Gate';
-      case ComponentType.notGate:
-        return 'NOT Gate';
-
-      case ComponentType.add:
-        return 'Add';
-      case ComponentType.subtract:
-        return 'Subtract';
-      case ComponentType.multiply:
-        return 'Multiply';
-      case ComponentType.divide:
-        return 'Divide';
-
-      case ComponentType.isGreaterThan:
-        return 'Greater Than';
-      case ComponentType.isLessThan:
-        return 'Less Than';
-      case ComponentType.isEqual:
-        return 'Equals';
-
-      case ComponentType.booleanInput:
-        return 'Boolean';
-      case ComponentType.numberInput:
-        return 'Number';
-      case ComponentType.stringInput:
-        return 'String';
-    }
-  }
-
   void _addNewComponent(ComponentType type) {
     // Generate a unique name based on type
-    String baseName = _getNameForComponentType(type);
+    String baseName = getNameForComponentType(type);
     int counter = 1;
     String newName = '$baseName $counter';
 
@@ -789,7 +717,7 @@ class _FlowScreenState extends State<FlowScreen> {
                 items: _getCompatibleTypes(component.type).map((type) {
                   return DropdownMenuItem<ComponentType>(
                     value: type,
-                    child: Text(_getNameForComponentType(type)),
+                    child: Text(getNameForComponentType(type)),
                   );
                 }).toList(),
                 onChanged: (ComponentType? value) {

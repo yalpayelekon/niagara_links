@@ -3,6 +3,8 @@ import 'package:niagara_links/models/component.dart';
 import 'package:niagara_links/models/enums.dart';
 import 'package:niagara_links/models/port.dart';
 
+import 'utils.dart';
+
 class PortDragInfo {
   final String componentId;
   final int portIndex;
@@ -44,7 +46,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
       key: widget.widgetKey,
       padding: const EdgeInsets.all(itemExternalPadding),
       decoration: BoxDecoration(
-        color: _getComponentColor(),
+        color: getComponentColor(widget.component),
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
@@ -112,11 +114,11 @@ class _ComponentWidgetState extends State<ComponentWidget> {
               border: Border.all(color: Colors.black45, width: 1),
             ),
             child: Text(
-              _getComponentSymbol(),
+              getComponentSymbol(widget.component),
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: _getComponentTextColor(),
+                color: getComponentTextColor(widget.component),
               ),
             ),
           ),
@@ -390,103 +392,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
             style: TextStyle(fontSize: 10),
           );
         }
-    }
-  }
-
-  String _getComponentSymbol() {
-    switch (widget.component.type) {
-      case ComponentType.andGate:
-        return 'AND';
-      case ComponentType.orGate:
-        return 'OR';
-      case ComponentType.xorGate:
-        return 'XOR';
-      case ComponentType.notGate:
-        return 'NOT';
-      case ComponentType.add:
-        return '+';
-      case ComponentType.subtract:
-        return '-';
-      case ComponentType.multiply:
-        return '×';
-      case ComponentType.divide:
-        return '÷';
-      case ComponentType.isGreaterThan:
-        return '>';
-      case ComponentType.isLessThan:
-        return '<';
-      case ComponentType.isEqual:
-        return '=';
-      case ComponentType.booleanInput:
-        return 'IN';
-      case ComponentType.numberInput:
-        return '#';
-      case ComponentType.stringInput:
-        return 'abc';
-    }
-  }
-
-  Color _getComponentColor() {
-    switch (widget.component.type) {
-      // Logic gates - blue family
-      case ComponentType.andGate:
-      case ComponentType.orGate:
-      case ComponentType.xorGate:
-      case ComponentType.notGate:
-        return Colors.lightBlue[100]!;
-
-      // Math operations - green family
-      case ComponentType.add:
-      case ComponentType.subtract:
-      case ComponentType.multiply:
-      case ComponentType.divide:
-        return Colors.lightGreen[100]!;
-
-      // Comparison operations - purple family
-      case ComponentType.isGreaterThan:
-      case ComponentType.isLessThan:
-      case ComponentType.isEqual:
-        return Colors.purpleAccent[100]!;
-
-      // Input components
-      case ComponentType.booleanInput:
-        return Colors.indigo[100]!;
-      case ComponentType.numberInput:
-        return Colors.teal[100]!;
-      case ComponentType.stringInput:
-        return Colors.orange[100]!;
-    }
-  }
-
-  Color _getComponentTextColor() {
-    switch (widget.component.type) {
-      // Logic gates - blue family
-      case ComponentType.andGate:
-      case ComponentType.orGate:
-      case ComponentType.xorGate:
-      case ComponentType.notGate:
-        return Colors.blue[800]!;
-
-      // Math operations - green family
-      case ComponentType.add:
-      case ComponentType.subtract:
-      case ComponentType.multiply:
-      case ComponentType.divide:
-        return Colors.green[800]!;
-
-      // Comparison operations - purple family
-      case ComponentType.isGreaterThan:
-      case ComponentType.isLessThan:
-      case ComponentType.isEqual:
-        return Colors.purple[800]!;
-
-      // Input components
-      case ComponentType.booleanInput:
-        return Colors.indigo[800]!;
-      case ComponentType.numberInput:
-        return Colors.teal[800]!;
-      case ComponentType.stringInput:
-        return Colors.orange[800]!;
     }
   }
 }
