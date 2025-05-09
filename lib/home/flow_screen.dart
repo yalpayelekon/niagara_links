@@ -679,7 +679,7 @@ class _FlowScreenState extends State<FlowScreen> {
             children: const [
               Icon(Icons.edit, size: 18),
               SizedBox(width: 8),
-              Text('Edit Name'),
+              Text('Edit'),
             ],
           ),
         ),
@@ -764,67 +764,147 @@ class _FlowScreenState extends State<FlowScreen> {
   void _handleEditComponent(BuildContext context, Component component) {
     TextEditingController nameController =
         TextEditingController(text: component.id);
+    ComponentType selectedType = component.type;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit Component Name'),
-        content: TextField(
-          controller: nameController,
-          decoration: InputDecoration(labelText: 'Component Name'),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final oldId = component.id;
-              String newId = nameController.text.trim();
-
-              // Check if the name is unique or empty
-              if (newId.isEmpty) {
-                newId = oldId;
-              } else if (_flowManager.components
-                  .any((comp) => comp.id == newId && comp.id != oldId)) {
-                // Name already exists, add a suffix
-                int counter = 1;
-                String baseName = newId;
-                while (_flowManager.components
-                    .any((comp) => comp.id == newId && comp.id != oldId)) {
-                  counter++;
-                  newId = '$baseName $counter';
-                }
-              }
-
-              // Only create a command if the name actually changed
-              if (oldId != newId) {
-                setState(() {
-                  final command = EditComponentCommand(
-                    _flowManager,
-                    oldId,
-                    newId,
-                    _componentPositions,
-                    _componentKeys,
-                    _flowManager.connections,
-                    _flowManager.components,
+      builder: (context) => StatefulBuilder(builder: (context, setState) {
+        return AlertDialog(
+          title: const Text('Edit Component'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Component Name'),
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<ComponentType>(
+                value: selectedType,
+                decoration: const InputDecoration(
+                  labelText: 'Component Type',
+                ),
+                items: _getCompatibleTypes(component.type).map((type) {
+                  return DropdownMenuItem<ComponentType>(
+                    value: type,
+                    child: Text(_getNameForComponentType(type)),
                   );
-                  _commandHistory.execute(command);
-                });
-              }
-              Navigator.pop(context);
-            },
-            child: Text('Save'),
+                }).toList(),
+                onChanged: (ComponentType? value) {
+                  if (value != null) {
+                    setState(() {
+                      selectedType = value;
+                    });
+                  }
+                },
+              ),
+            ],
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final oldId = component.id;
+                String newId = nameController.text.trim();
+
+                // Check if the name is unique or empty
+                if (newId.isEmpty) {
+                  newId = oldId;
+                } else if (_flowManager.components
+                    .any((comp) => comp.id == newId && comp.id != oldId)) {
+                  // Name already exists, add a suffix
+                  int counter = 1;
+                  String baseName = newId;
+                  while (_flowManager.components
+                      .any((comp) => comp.id == newId && comp.id != oldId)) {
+                    counter++;
+                    newId = '$baseName $counter';
+                  }
+                }
+
+                // Create a command if anything changed
+                if (oldId != newId || component.type != selectedType) {
+                  this.setState(() {
+                    final command = EditComponentCommand(
+                      flowManager: _flowManager,
+                      oldId: oldId,
+                      newId: newId,
+                      oldType: component.type,
+                      newType: selectedType,
+                      componentPositions: _componentPositions,
+                      componentKeys: _componentKeys,
+                    );
+                    _commandHistory.execute(command);
+                  });
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      }),
     );
   }
 
+  // Get a list of component types that are compatible with the current type
+  // (i.e., they have similar port structures)
+  List<ComponentType> _getCompatibleTypes(ComponentType currentType) {
+    // Group types by their port structure for compatibility
+    switch (currentType) {
+      // 2-input, 1-output boolean components
+      case ComponentType.andGate:
+      case ComponentType.orGate:
+      case ComponentType.xorGate:
+        return [
+          ComponentType.andGate,
+          ComponentType.orGate,
+          ComponentType.xorGate,
+        ];
+
+      // 1-input, 1-output boolean components
+      case ComponentType.notGate:
+        return [ComponentType.notGate];
+
+      // 2-input, 1-output math components
+      case ComponentType.add:
+      case ComponentType.subtract:
+      case ComponentType.multiply:
+      case ComponentType.divide:
+        return [
+          ComponentType.add,
+          ComponentType.subtract,
+          ComponentType.multiply,
+          ComponentType.divide,
+        ];
+
+      // 2-input, 1-output comparison components
+      case ComponentType.isGreaterThan:
+      case ComponentType.isLessThan:
+        return [
+          ComponentType.isGreaterThan,
+          ComponentType.isLessThan,
+        ];
+
+      // Comparison with any type
+      case ComponentType.isEqual:
+        return [ComponentType.isEqual];
+
+      // Single input components (by type)
+      case ComponentType.booleanInput:
+        return [ComponentType.booleanInput];
+      case ComponentType.numberInput:
+        return [ComponentType.numberInput];
+      case ComponentType.stringInput:
+        return [ComponentType.stringInput];
+    }
+  }
+
   void _handleDeleteComponent(Component component) {
-    // Find all connections related to this component before removing
     final affectedConnections = _flowManager.connections
         .where((connection) =>
             connection.fromComponentId == component.id ||
