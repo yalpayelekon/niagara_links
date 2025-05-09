@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:niagara_links/draggable_item.dart';
-import 'package:niagara_links/line_connection_painter.dart';
-import 'package:niagara_links/models.dart';
+import 'package:niagara_links/simple_line_example/draggable_item.dart';
+import 'package:niagara_links/simple_line_example/line_connection_painter.dart';
+import 'package:niagara_links/simple_line_example/models.dart';
 
 class DraggableInteractiveLinesExample extends StatefulWidget {
   const DraggableInteractiveLinesExample({super.key});

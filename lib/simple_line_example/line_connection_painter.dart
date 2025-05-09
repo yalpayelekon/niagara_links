@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:niagara_links/draggable_item.dart';
-import 'package:niagara_links/draggable_lines_screen.dart';
-import 'package:niagara_links/models.dart';
+import 'package:niagara_links/simple_line_example/draggable_item.dart';
+import 'package:niagara_links/simple_line_example/draggable_lines_screen.dart';
+import 'package:niagara_links/simple_line_example/models.dart';
 
 class LineConnectionPainter extends CustomPainter {
   final List<DraggableItem> items;

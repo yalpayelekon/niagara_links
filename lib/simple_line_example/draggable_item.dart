@@ -1,7 +1,7 @@
 // In lib/draggable_item.dart
 
 import 'package:flutter/material.dart';
-import 'package:niagara_links/draggable_lines_screen.dart';
+import 'package:niagara_links/simple_line_example/draggable_lines_screen.dart';
 
 class DraggableItem {
   String id; // Changed from final to allow editing
