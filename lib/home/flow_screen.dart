@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:niagara_links/models/command_history.dart';
 import 'package:niagara_links/models/component.dart';
 import '../models/enums.dart';
+import 'grid_painter.dart';
 import 'manager.dart';
 import 'component_widget.dart';
 import 'connection_painter.dart';
@@ -48,7 +49,14 @@ class _FlowScreenState extends State<FlowScreen> {
   void initState() {
     super.initState();
     _transformationController.value = Matrix4.identity();
+    _transformationController.addListener(() => setState(() {}));
     _initializeComponents();
+  }
+
+  @override
+  void dispose() {
+    _transformationController.removeListener(() => setState(() {}));
+    super.dispose();
   }
 
   void _initializeComponents() {
@@ -287,10 +295,8 @@ class _FlowScreenState extends State<FlowScreen> {
             ),
             body: InteractiveViewer(
               transformationController: _transformationController,
-              constrained:
-                  false, // Add this line to allow content to be larger than viewport
-              boundaryMargin: const EdgeInsets.all(
-                  double.infinity), // Allow infinite panning
+              constrained: false,
+              boundaryMargin: const EdgeInsets.all(double.infinity),
               minScale: 0.1,
               maxScale: 3.0,
               child: GestureDetector(
@@ -313,103 +319,124 @@ class _FlowScreenState extends State<FlowScreen> {
                     _currentDraggedPort = null;
                   });
                 },
-                child: CustomPaint(
-                  key: _interactiveViewerChildKey,
-                  foregroundPainter: ConnectionPainter(
-                    flowManager: _flowManager,
-                    componentPositions: _componentPositions,
-                    componentKeys: _componentKeys,
-                    tempLineStartInfo: _currentDraggedPort,
-                    tempLineEndPoint: _tempLineEndPoint,
-                  ),
-                  child: Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    color: Colors.grey[100], // Optional: add a background color
-                    child: Stack(
-                      children: _flowManager.components.map((component) {
-                        return Positioned(
-                          left: _componentPositions[component.id]?.dx ?? 0,
-                          top: _componentPositions[component.id]?.dy ?? 0,
-                          child: Draggable<String>(
-                            data: component.id,
-                            feedback: Material(
-                              elevation: 5.0,
-                              color: Colors.transparent,
-                              child: ComponentWidget(
-                                component: component,
-                                widgetKey:
-                                    _componentKeys[component.id] ?? GlobalKey(),
-                                position: _componentPositions[component.id] ??
-                                    Offset.zero,
-                                onValueChanged: _handleValueChanged,
-                                onPortDragStarted: _handlePortDragStarted,
-                                onPortDragAccepted: _handlePortDragAccepted,
-                              ),
-                            ),
-                            childWhenDragging: Opacity(
-                              opacity: 0.3,
-                              child: ComponentWidget(
-                                component: component,
-                                widgetKey: GlobalKey(),
-                                position: _componentPositions[component.id] ??
-                                    Offset.zero,
-                                onValueChanged: _handleValueChanged,
-                                onPortDragStarted: _handlePortDragStarted,
-                                onPortDragAccepted: _handlePortDragAccepted,
-                              ),
-                            ),
-                            onDragStarted: () {
-                              // Store the original position when drag starts
-                              _dragStartPosition =
-                                  _componentPositions[component.id];
-                            },
-                            onDragEnd: (details) {
-                              final RenderBox? viewerChildRenderBox =
-                                  _interactiveViewerChildKey.currentContext
-                                      ?.findRenderObject() as RenderBox?;
-
-                              if (viewerChildRenderBox != null) {
-                                final Offset localOffset = viewerChildRenderBox
-                                    .globalToLocal(details.offset);
-
-                                if (_dragStartPosition != null &&
-                                    _dragStartPosition != localOffset) {
-                                  setState(() {
-                                    final command = MoveComponentCommand(
-                                      component.id,
-                                      localOffset,
-                                      _dragStartPosition!,
-                                      _componentPositions,
-                                    );
-                                    _commandHistory.execute(command);
-
-                                    _dragStartPosition = null;
-                                  });
-                                }
-                              }
-                            },
-                            child: GestureDetector(
-                              onSecondaryTapDown: (details) {
-                                _showContextMenu(
-                                    context, details.globalPosition, component);
-                              },
-                              child: ComponentWidget(
-                                component: component,
-                                widgetKey:
-                                    _componentKeys[component.id] ?? GlobalKey(),
-                                position: _componentPositions[component.id] ??
-                                    Offset.zero,
-                                onValueChanged: _handleValueChanged,
-                                onPortDragStarted: _handlePortDragStarted,
-                                onPortDragAccepted: _handlePortDragAccepted,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                child: Stack(
+                  children: [
+                    SizedBox(
+                      width: 5000, // Large but finite size
+                      height: 5000, // Large but finite size
+                      child: CustomPaint(
+                        painter: GridPainter(
+                          transform: _transformationController.value,
+                          gridSize: 50.0,
+                          lineColor: Colors.grey,
+                          lineWidth: 0.5,
+                        ),
+                      ),
                     ),
-                  ),
+                    CustomPaint(
+                      key: _interactiveViewerChildKey,
+                      foregroundPainter: ConnectionPainter(
+                        flowManager: _flowManager,
+                        componentPositions: _componentPositions,
+                        componentKeys: _componentKeys,
+                        tempLineStartInfo: _currentDraggedPort,
+                        tempLineEndPoint: _tempLineEndPoint,
+                      ),
+                      child: Container(
+                        width: double.infinity,
+                        height: double.infinity,
+                        color: Colors
+                            .grey[100], // Optional: add a background color
+                        child: Stack(
+                          children: _flowManager.components.map((component) {
+                            return Positioned(
+                              left: _componentPositions[component.id]?.dx ?? 0,
+                              top: _componentPositions[component.id]?.dy ?? 0,
+                              child: Draggable<String>(
+                                data: component.id,
+                                feedback: Material(
+                                  elevation: 5.0,
+                                  color: Colors.transparent,
+                                  child: ComponentWidget(
+                                    component: component,
+                                    widgetKey: _componentKeys[component.id] ??
+                                        GlobalKey(),
+                                    position:
+                                        _componentPositions[component.id] ??
+                                            Offset.zero,
+                                    onValueChanged: _handleValueChanged,
+                                    onPortDragStarted: _handlePortDragStarted,
+                                    onPortDragAccepted: _handlePortDragAccepted,
+                                  ),
+                                ),
+                                childWhenDragging: Opacity(
+                                  opacity: 0.3,
+                                  child: ComponentWidget(
+                                    component: component,
+                                    widgetKey: GlobalKey(),
+                                    position:
+                                        _componentPositions[component.id] ??
+                                            Offset.zero,
+                                    onValueChanged: _handleValueChanged,
+                                    onPortDragStarted: _handlePortDragStarted,
+                                    onPortDragAccepted: _handlePortDragAccepted,
+                                  ),
+                                ),
+                                onDragStarted: () {
+                                  // Store the original position when drag starts
+                                  _dragStartPosition =
+                                      _componentPositions[component.id];
+                                },
+                                onDragEnd: (details) {
+                                  final RenderBox? viewerChildRenderBox =
+                                      _interactiveViewerChildKey.currentContext
+                                          ?.findRenderObject() as RenderBox?;
+
+                                  if (viewerChildRenderBox != null) {
+                                    final Offset localOffset =
+                                        viewerChildRenderBox
+                                            .globalToLocal(details.offset);
+
+                                    if (_dragStartPosition != null &&
+                                        _dragStartPosition != localOffset) {
+                                      setState(() {
+                                        final command = MoveComponentCommand(
+                                          component.id,
+                                          localOffset,
+                                          _dragStartPosition!,
+                                          _componentPositions,
+                                        );
+                                        _commandHistory.execute(command);
+
+                                        _dragStartPosition = null;
+                                      });
+                                    }
+                                  }
+                                },
+                                child: GestureDetector(
+                                  onSecondaryTapDown: (details) {
+                                    _showContextMenu(context,
+                                        details.globalPosition, component);
+                                  },
+                                  child: ComponentWidget(
+                                    component: component,
+                                    widgetKey: _componentKeys[component.id] ??
+                                        GlobalKey(),
+                                    position:
+                                        _componentPositions[component.id] ??
+                                            Offset.zero,
+                                    onValueChanged: _handleValueChanged,
+                                    onPortDragStarted: _handlePortDragStarted,
+                                    onPortDragAccepted: _handlePortDragAccepted,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
