@@ -219,7 +219,7 @@ class DraggableInteractiveLinesExampleState
       onSecondaryTapDown: isFeedback
           ? null
           : (details) {
-              _showContextMenu(context, details.globalPosition, item);
+              showContextMenu(context, details.globalPosition, item);
             },
       child: Container(
         key: isFeedback ? null : item.widgetKey,
@@ -379,7 +379,7 @@ class DraggableInteractiveLinesExampleState
     );
   }
 
-  void _showContextMenu(
+  void showContextMenu(
       BuildContext context, Offset position, DraggableItem item) {
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
