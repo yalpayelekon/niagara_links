@@ -27,7 +27,6 @@ class LogicConnectionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Paint for permanent connections
     final Paint connectionPaint = Paint()
       ..color = Colors.indigo
       ..strokeWidth = 2.0
@@ -76,7 +75,6 @@ class LogicConnectionPainter extends CustomPainter {
 
     if (fromPort == null || toPort == null) return;
 
-    // Calculate port positions
     final fromPortPos = _calculatePortPosition(fromPosition, fromPort.index,
         !fromPort.isInput // true for output (right side)
         );
@@ -85,10 +83,7 @@ class LogicConnectionPainter extends CustomPainter {
         !toPort.isInput // true for output (right side)
         );
 
-    // Draw connection line with arrow
     _drawArrowLine(canvas, fromPortPos, toPortPos, paint);
-
-    // Draw the value being transferred
     _drawTransferredValue(canvas, fromPortPos, toPortPos, fromPort.value);
   }
 
@@ -106,26 +101,21 @@ class LogicConnectionPainter extends CustomPainter {
 
     if (fromPort == null) return;
 
-    // Calculate port position
     final fromPortPos = _calculatePortPosition(fromPosition, fromPort.index,
         !fromPort.isInput // true for output (right side)
         );
 
-    // Draw dashed line
     _drawDashedLine(canvas, fromPortPos, endPoint, paint);
   }
 
   Offset _calculatePortPosition(
       Offset itemPosition, int portIndex, bool isRightSide) {
-    // Get the center X of the item (estimated width is 150 + padding*2)
     final double itemWidth = 150.0 + (itemPadding * 2);
 
-    // X position depends on whether it's an input (left) or output (right) port
     final double portX = isRightSide
         ? itemPosition.dx + itemWidth // Right side for outputs
         : itemPosition.dx; // Left side for inputs
 
-    // Y position is based on the port index
     final double portY = itemPosition.dy +
         itemPadding +
         portVerticalOffset +
@@ -136,10 +126,8 @@ class LogicConnectionPainter extends CustomPainter {
   }
 
   void _drawArrowLine(Canvas canvas, Offset start, Offset end, Paint paint) {
-    // Draw the main line
     canvas.drawLine(start, end, paint);
 
-    // Draw arrow at end
     final double arrowSize = 8.0;
     final double angle = atan2(end.dy - start.dy, end.dx - start.dx);
 
@@ -161,7 +149,6 @@ class LogicConnectionPainter extends CustomPainter {
     const double dashWidth = 5;
     const double dashSpace = 3;
 
-    // Calculate dash count based on line length
     final double dx = end.dx - start.dx;
     final double dy = end.dy - start.dy;
     final double distance = sqrt(dx * dx + dy * dy);
@@ -172,7 +159,6 @@ class LogicConnectionPainter extends CustomPainter {
     final double stepX = dx / dashCount;
     final double stepY = dy / dashCount;
 
-    // Draw background line for better visibility
     final Paint backgroundPaint = Paint()
       ..color = Colors.white.withOpacity(0.5)
       ..strokeWidth = paint.strokeWidth + 1.0
@@ -181,7 +167,6 @@ class LogicConnectionPainter extends CustomPainter {
 
     canvas.drawLine(start, end, backgroundPaint);
 
-    // Draw dashed line
     for (int i = 0; i < dashCount; i++) {
       final double startX =
           start.dx + i * (stepX + stepX * dashSpace / dashWidth);
@@ -197,13 +182,11 @@ class LogicConnectionPainter extends CustomPainter {
 
   void _drawTransferredValue(
       Canvas canvas, Offset start, Offset end, bool value) {
-    // Calculate midpoint of the line
     final Offset midpoint = Offset(
       (start.dx + end.dx) / 2,
       (start.dy + end.dy) / 2,
     );
 
-    // Create background for the value text
     final Paint backgroundPaint = Paint()
       ..color = Colors.white.withOpacity(0.85)
       ..style = PaintingStyle.fill;
@@ -214,12 +197,10 @@ class LogicConnectionPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
-    // Draw value bubble
     final double bubbleRadius = 14.0;
     canvas.drawCircle(midpoint, bubbleRadius, backgroundPaint);
     canvas.drawCircle(midpoint, bubbleRadius, borderPaint);
 
-    // Prepare text for value bubble
     final textSpan = TextSpan(
       text: value ? 'T' : 'F', // T for true, F for false
       style: TextStyle(
@@ -236,7 +217,6 @@ class LogicConnectionPainter extends CustomPainter {
 
     textPainter.layout();
 
-    // Center text in the bubble
     textPainter.paint(
       canvas,
       Offset(

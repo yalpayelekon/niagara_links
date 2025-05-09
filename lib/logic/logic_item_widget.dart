@@ -19,14 +19,14 @@ class LogicItemWidget extends StatefulWidget {
   final Function(PortDragInfo) onPortDragAccepted;
 
   const LogicItemWidget({
-    Key? key,
+    super.key,
     required this.item,
     required this.widgetKey,
     required this.position,
     required this.onValueChanged,
     required this.onPortDragStarted,
     required this.onPortDragAccepted,
-  }) : super(key: key);
+  });
 
   @override
   State<LogicItemWidget> createState() => _LogicItemWidgetState();
@@ -36,7 +36,7 @@ class _LogicItemWidgetState extends State<LogicItemWidget> {
   static const double itemExternalPadding = 8.0;
   static const double itemTitleSectionHeight = 28.0;
   static const double rowHeight = 36.0;
-  static const double rowAreaWidth = 150.0;
+  static const double rowAreaWidth = 160.0;
 
   @override
   Widget build(BuildContext context) {
@@ -62,45 +62,8 @@ class _LogicItemWidgetState extends State<LogicItemWidget> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: itemTitleSectionHeight - 4,
-            constraints: BoxConstraints(
-              maxWidth: rowAreaWidth + 20,
-            ),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.only(bottom: 4.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  widget.item.id,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.black45, width: 1),
-                  ),
-                  child: Text(
-                    _getOperationSymbol(),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildTitleSection(),
+          const SizedBox(height: 2),
           Container(
             width: rowAreaWidth,
             decoration: BoxDecoration(
@@ -113,6 +76,47 @@ class _LogicItemWidgetState extends State<LogicItemWidget> {
               children: List.generate(
                 widget.item.ports.length,
                 (index) => _buildPortRow(index),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTitleSection() {
+    return SizedBox(
+      height: itemTitleSectionHeight,
+      width: rowAreaWidth,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              widget.item.id,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            margin: const EdgeInsets.only(left: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.black45, width: 1),
+            ),
+            child: Text(
+              _getOperationSymbol(),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: _getOperationTextColor(),
               ),
             ),
           ),
@@ -182,46 +186,27 @@ class _LogicItemWidgetState extends State<LogicItemWidget> {
                   : null,
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(
-                  isInput ? Icons.arrow_back : Icons.arrow_forward,
-                  size: 14,
-                  color: Colors.indigo.withOpacity(0.6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isInput ? Icons.arrow_back : Icons.arrow_forward,
+                      size: 14,
+                      color: Colors.indigo.withOpacity(0.6),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.black.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.black.withOpacity(0.8),
-                  ),
-                ),
-                const Spacer(),
-                // Boolean switch instead of number input field
-                Switch(
-                  value: port.value,
-                  onChanged: widget.item.operationType ==
-                              LogicOperationType.input ||
-                          (isInput &&
-                              widget.item.inputConnections[port.index] == null)
-                      ? (newValue) {
-                          widget.onValueChanged(
-                              widget.item.id, index, newValue);
-                        }
-                      : null, // Disable if port is connected or not an input/input-gate
-                  activeColor: Colors.green,
-                  inactiveThumbColor: Colors.red,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  port.value ? 'TRUE' : 'FALSE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: port.value ? Colors.green[800] : Colors.red[800],
-                  ),
-                ),
+                _buildStateIndicator(port),
               ],
             ),
           ),
@@ -230,7 +215,63 @@ class _LogicItemWidgetState extends State<LogicItemWidget> {
     );
   }
 
-  // Get the operation symbol based on type
+  Widget _buildStateIndicator(LogicPort port) {
+    final isEnabled = widget.item.operationType == LogicOperationType.input ||
+        (port.isInput && widget.item.inputConnections[port.index] == null);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: isEnabled
+              ? () {
+                  widget.onValueChanged(
+                      widget.item.id, port.index, !port.value);
+                }
+              : null,
+          child: Container(
+            width: 36,
+            height: 18,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: port.value ? Colors.green : Colors.red[300],
+              border: Border.all(
+                color: Colors.black45,
+                width: 0.5,
+              ),
+            ),
+            child: AnimatedAlign(
+              duration: const Duration(milliseconds: 150),
+              alignment:
+                  port.value ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  border: Border.all(
+                    color: Colors.black45,
+                    width: 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          port.value ? 'T' : 'F',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: port.value ? Colors.green[800] : Colors.red[800],
+          ),
+        ),
+      ],
+    );
+  }
+
   String _getOperationSymbol() {
     switch (widget.item.operationType) {
       case LogicOperationType.and:
@@ -246,7 +287,6 @@ class _LogicItemWidgetState extends State<LogicItemWidget> {
     }
   }
 
-  // Get color based on operation type
   Color _getOperationColor() {
     switch (widget.item.operationType) {
       case LogicOperationType.and:
@@ -259,6 +299,21 @@ class _LogicItemWidgetState extends State<LogicItemWidget> {
         return Colors.orangeAccent[100]!;
       case LogicOperationType.input:
         return Colors.lightGreen[100]!;
+    }
+  }
+
+  Color _getOperationTextColor() {
+    switch (widget.item.operationType) {
+      case LogicOperationType.and:
+        return Colors.blue[800]!;
+      case LogicOperationType.or:
+        return Colors.teal[800]!;
+      case LogicOperationType.xor:
+        return Colors.purple[800]!;
+      case LogicOperationType.not:
+        return Colors.orange[800]!;
+      case LogicOperationType.input:
+        return Colors.green[800]!;
     }
   }
 }

@@ -6,12 +6,10 @@ class LogicManager {
   List<LogicItem> items = [];
   List<LogicConnection> connections = [];
 
-  // Add a new item to the logic network
   void addItem(LogicItem item) {
     items.add(item);
   }
 
-  // Remove an item from the logic network
   void removeItem(String itemId) {
     items.removeWhere((item) => item.id == itemId);
     connections.removeWhere(
@@ -19,14 +17,11 @@ class LogicManager {
           connection.fromItemId == itemId || connection.toItemId == itemId,
     );
 
-    // Recalculate after removing an item
     recalculateAll();
   }
 
-  // Connect two logic ports
   void createConnection(
       String fromItemId, int fromPortIndex, String toItemId, int toPortIndex) {
-    // Check if the connection already exists
     bool connectionExists = connections.any((connection) =>
         connection.fromItemId == fromItemId &&
         connection.fromPortIndex == fromPortIndex &&
@@ -34,7 +29,6 @@ class LogicManager {
         connection.toPortIndex == toPortIndex);
 
     if (!connectionExists) {
-      // Check that source is an output and destination is an input
       LogicItem? fromItem = findItemById(fromItemId);
       LogicItem? toItem = findItemById(toItemId);
 
@@ -57,14 +51,12 @@ class LogicManager {
             portIndex: fromPortIndex,
           );
 
-          // Propagate the current value
           propagateValue(fromItem, fromPortIndex);
         }
       }
     }
   }
 
-  // Remove a connection
   void removeConnection(
       String fromItemId, int fromPortIndex, String toItemId, int toPortIndex) {
     connections.removeWhere((connection) =>
@@ -98,11 +90,9 @@ class LogicManager {
     if (item != null && portIndex < item.ports.length) {
       item.ports[portIndex].value = value;
 
-      // If this is an output port, propagate the value
       if (!item.ports[portIndex].isInput) {
         propagateValue(item, portIndex);
       } else {
-        // If this is an input port, recalculate the item and propagate output
         item.calculate();
         for (var port in item.ports) {
           if (!port.isInput) {
@@ -129,15 +119,12 @@ class LogicManager {
             connection.isFromItem(sourceItem.id, sourcePortIndex))
         .toList();
 
-    // Update all connected input ports
     for (var connection in outgoingConnections) {
       LogicItem? targetItem = findItemById(connection.toItemId);
       if (targetItem != null &&
           connection.toPortIndex < targetItem.ports.length) {
-        // Update the input port value
         targetItem.ports[connection.toPortIndex].value = valueToPropagate;
 
-        // Recalculate the target item
         targetItem.calculate();
 
         // Recursively propagate from the target item's output ports
