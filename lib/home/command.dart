@@ -1,0 +1,355 @@
+// lib/home/command.dart
+
+import 'dart:ui';
+import 'models.dart';
+import 'manager.dart';
+
+/// Base class for commands that can be undone and redone
+abstract class Command {
+  /// Execute the command
+  void execute();
+
+  /// Undo the command
+  void undo();
+
+  /// Redo the command (typically just calls execute)
+  void redo() {
+    execute();
+  }
+
+  /// Description of the command for UI purposes
+  String get description;
+}
+
+/// Command for adding a component
+class AddComponentCommand extends Command {
+  final FlowManager flowManager;
+  final Component component;
+  final Map<String, dynamic> state;
+
+  AddComponentCommand(this.flowManager, this.component, this.state);
+
+  @override
+  void execute() {
+    flowManager.addComponent(component);
+    if (state.containsKey('position')) {
+      (state['positions'] as Map<String, dynamic>)[component.id] =
+          state['position'];
+    }
+    if (state.containsKey('key')) {
+      (state['keys'] as Map<String, dynamic>)[component.id] = state['key'];
+    }
+  }
+
+  @override
+  void undo() {
+    flowManager.removeComponent(component.id);
+    if (state.containsKey('positions')) {
+      (state['positions'] as Map<String, dynamic>).remove(component.id);
+    }
+    if (state.containsKey('keys')) {
+      (state['keys'] as Map<String, dynamic>).remove(component.id);
+    }
+  }
+
+  @override
+  String get description => 'Add ${component.id}';
+}
+
+/// Command for removing a component
+class RemoveComponentCommand extends Command {
+  final FlowManager flowManager;
+  final Component component;
+  final Offset position;
+  final dynamic key;
+  final List<Connection> affectedConnections;
+
+  RemoveComponentCommand(
+    this.flowManager,
+    this.component,
+    this.position,
+    this.key,
+    this.affectedConnections,
+  );
+
+  @override
+  void execute() {
+    flowManager.removeComponent(component.id);
+  }
+
+  @override
+  void undo() {
+    flowManager.addComponent(component);
+
+    // Restore all connections
+    for (var connection in affectedConnections) {
+      flowManager.createConnection(
+        connection.fromComponentId,
+        connection.fromPortIndex,
+        connection.toComponentId,
+        connection.toPortIndex,
+      );
+    }
+  }
+
+  @override
+  String get description => 'Remove ${component.id}';
+}
+
+/// Command for creating a connection between two components
+class CreateConnectionCommand extends Command {
+  final FlowManager flowManager;
+  final String fromComponentId;
+  final int fromPortIndex;
+  final String toComponentId;
+  final int toPortIndex;
+
+  CreateConnectionCommand(
+    this.flowManager,
+    this.fromComponentId,
+    this.fromPortIndex,
+    this.toComponentId,
+    this.toPortIndex,
+  );
+
+  @override
+  void execute() {
+    flowManager.createConnection(
+      fromComponentId,
+      fromPortIndex,
+      toComponentId,
+      toPortIndex,
+    );
+  }
+
+  @override
+  void undo() {
+    flowManager.removeConnection(
+      fromComponentId,
+      fromPortIndex,
+      toComponentId,
+      toPortIndex,
+    );
+  }
+
+  @override
+  String get description => 'Connect ${fromComponentId}→${toComponentId}';
+}
+
+/// Command for updating a port value
+class UpdatePortValueCommand extends Command {
+  final FlowManager flowManager;
+  final String componentId;
+  final int portIndex;
+  final dynamic newValue;
+  final dynamic oldValue;
+
+  UpdatePortValueCommand(
+    this.flowManager,
+    this.componentId,
+    this.portIndex,
+    this.newValue,
+    this.oldValue,
+  );
+
+  @override
+  void execute() {
+    flowManager.updatePortValue(componentId, portIndex, newValue);
+  }
+
+  @override
+  void undo() {
+    flowManager.updatePortValue(componentId, portIndex, oldValue);
+  }
+
+  @override
+  String get description => 'Change ${componentId} value';
+}
+
+/// Command for moving a component
+class MoveComponentCommand extends Command {
+  final String componentId;
+  final Offset newPosition;
+  final Offset oldPosition;
+  final Map<String, Offset> componentPositions;
+
+  MoveComponentCommand(
+    this.componentId,
+    this.newPosition,
+    this.oldPosition,
+    this.componentPositions,
+  );
+
+  @override
+  void execute() {
+    componentPositions[componentId] = newPosition;
+  }
+
+  @override
+  void undo() {
+    componentPositions[componentId] = oldPosition;
+  }
+
+  @override
+  String get description => 'Move ${componentId}';
+}
+
+/// Command for editing a component's name
+class EditComponentCommand extends Command {
+  final FlowManager flowManager;
+  final String oldId;
+  final String newId;
+  final Map<String, Offset> componentPositions;
+  final Map<String, dynamic> componentKeys;
+  final List<Connection> connections;
+  final List<Component> components;
+
+  EditComponentCommand(
+    this.flowManager,
+    this.oldId,
+    this.newId,
+    this.componentPositions,
+    this.componentKeys,
+    this.connections,
+    this.components,
+  );
+
+  @override
+  void execute() {
+    // Find the component
+    Component? component = flowManager.findComponentById(oldId);
+    if (component == null) return;
+
+    // Update component ID
+    component.id = newId;
+
+    // Update positions and keys
+    if (componentPositions.containsKey(oldId)) {
+      final position = componentPositions[oldId];
+      componentPositions.remove(oldId);
+      componentPositions[newId] = position!;
+    }
+
+    if (componentKeys.containsKey(oldId)) {
+      final key = componentKeys[oldId];
+      componentKeys.remove(oldId);
+      componentKeys[newId] = key!;
+    }
+
+    // Update connections
+    for (var connection in connections) {
+      if (connection.fromComponentId == oldId) {
+        connection.fromComponentId = newId;
+      }
+      if (connection.toComponentId == oldId) {
+        connection.toComponentId = newId;
+      }
+    }
+
+    // Update input connections in other components
+    for (var otherComponent in components) {
+      for (var entry in otherComponent.inputConnections.entries) {
+        if (entry.value.componentId == oldId) {
+          entry.value.componentId = newId;
+        }
+      }
+    }
+  }
+
+  @override
+  void undo() {
+    // Find the component
+    Component? component = flowManager.findComponentById(newId);
+    if (component == null) return;
+
+    // Update component ID
+    component.id = oldId;
+
+    // Update positions and keys
+    if (componentPositions.containsKey(newId)) {
+      final position = componentPositions[newId];
+      componentPositions.remove(newId);
+      componentPositions[oldId] = position!;
+    }
+
+    if (componentKeys.containsKey(newId)) {
+      final key = componentKeys[newId];
+      componentKeys.remove(newId);
+      componentKeys[oldId] = key!;
+    }
+
+    // Update connections
+    for (var connection in connections) {
+      if (connection.fromComponentId == newId) {
+        connection.fromComponentId = oldId;
+      }
+      if (connection.toComponentId == newId) {
+        connection.toComponentId = oldId;
+      }
+    }
+
+    // Update input connections in other components
+    for (var otherComponent in components) {
+      for (var entry in otherComponent.inputConnections.entries) {
+        if (entry.value.componentId == newId) {
+          entry.value.componentId = oldId;
+        }
+      }
+    }
+  }
+
+  @override
+  String get description => 'Edit ${oldId} to ${newId}';
+}
+
+/// Command history manager to track undo/redo operations
+class CommandHistory {
+  final List<Command> _undoStack = [];
+  final List<Command> _redoStack = [];
+  final int _maxHistorySize;
+
+  CommandHistory({int maxHistorySize = 100}) : _maxHistorySize = maxHistorySize;
+
+  bool get canUndo => _undoStack.isNotEmpty;
+  bool get canRedo => _redoStack.isNotEmpty;
+
+  void execute(Command command) {
+    command.execute();
+    _undoStack.add(command);
+
+    // Clear redo stack when new command is executed
+    _redoStack.clear();
+
+    // Limit history size
+    if (_undoStack.length > _maxHistorySize) {
+      _undoStack.removeAt(0);
+    }
+  }
+
+  void undo() {
+    if (canUndo) {
+      final command = _undoStack.removeLast();
+      command.undo();
+      _redoStack.add(command);
+    }
+  }
+
+  void redo() {
+    if (canRedo) {
+      final command = _redoStack.removeLast();
+      command.redo();
+      _undoStack.add(command);
+    }
+  }
+
+  void clear() {
+    _undoStack.clear();
+    _redoStack.clear();
+  }
+
+  String? get lastUndoDescription =>
+      canUndo ? _undoStack.last.description : null;
+
+  String? get lastRedoDescription =>
+      canRedo ? _redoStack.last.description : null;
+}

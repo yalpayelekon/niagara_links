@@ -1,4 +1,4 @@
-// lib/unified/flow_screen.dart
+// lib/home/flow_screen.dart
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import 'models.dart';
 import 'manager.dart';
 import 'component_widget.dart';
 import 'connection_painter.dart';
+import 'command.dart';
 
 // Custom intents for undo/redo actions
 class UndoIntent extends Intent {
@@ -26,6 +27,7 @@ class FlowScreen extends StatefulWidget {
 
 class _FlowScreenState extends State<FlowScreen> {
   final FlowManager _flowManager = FlowManager();
+  final CommandHistory _commandHistory = CommandHistory();
 
   // Item positions
   final Map<String, Offset> _componentPositions = {};
@@ -133,13 +135,32 @@ class _FlowScreenState extends State<FlowScreen> {
 
     // Calculate initial values
     _flowManager.recalculateAll();
+
+    // Clear the command history since we're setting up the initial state
+    _commandHistory.clear();
   }
 
   void _handleValueChanged(
       String componentId, int portIndex, dynamic newValue) {
-    setState(() {
-      _flowManager.updatePortValue(componentId, portIndex, newValue);
-    });
+    // Get the current value before changing it
+    Component? component = _flowManager.findComponentById(componentId);
+    if (component != null && portIndex < component.ports.length) {
+      dynamic oldValue = component.ports[portIndex].value;
+
+      // Only create a command if the value actually changed
+      if (oldValue != newValue) {
+        setState(() {
+          final command = UpdatePortValueCommand(
+            _flowManager,
+            componentId,
+            portIndex,
+            newValue,
+            oldValue,
+          );
+          _commandHistory.execute(command);
+        });
+      }
+    }
   }
 
   void _handlePortDragStarted(PortDragInfo portInfo) {
@@ -156,29 +177,31 @@ class _FlowScreenState extends State<FlowScreen> {
           _flowManager.findComponentById(targetPortInfo.componentId);
 
       if (sourceComponent != null && targetComponent != null) {
-        setState(() {
-          if (_flowManager.canCreateConnection(
-              _currentDraggedPort!.componentId,
-              _currentDraggedPort!.portIndex,
-              targetPortInfo.componentId,
-              targetPortInfo.portIndex)) {
-            _flowManager.createConnection(
+        if (_flowManager.canCreateConnection(
+            _currentDraggedPort!.componentId,
+            _currentDraggedPort!.portIndex,
+            targetPortInfo.componentId,
+            targetPortInfo.portIndex)) {
+          setState(() {
+            final command = CreateConnectionCommand(
+              _flowManager,
               _currentDraggedPort!.componentId,
               _currentDraggedPort!.portIndex,
               targetPortInfo.componentId,
               targetPortInfo.portIndex,
             );
-          } else {
-            // Show an error snackbar if the connection can't be created
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'Cannot connect these ports - type mismatch or invalid connection'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        });
+            _commandHistory.execute(command);
+          });
+        } else {
+          // Show an error snackbar if the connection can't be created
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Cannot connect these ports - type mismatch or invalid connection'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       }
     }
 
@@ -190,125 +213,227 @@ class _FlowScreenState extends State<FlowScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Visual Flow Editor'),
-      ),
-      body: InteractiveViewer(
-        transformationController: _transformationController,
-        boundaryMargin: EdgeInsets.all(_canvasWidth / 1.5),
-        minScale: 0.1,
-        maxScale: 3.0,
-        child: GestureDetector(
-          onPanUpdate: (details) {
-            if (_currentDraggedPort != null) {
-              setState(() {
-                final RenderBox? viewerChildRenderBox =
-                    _interactiveViewerChildKey.currentContext
-                        ?.findRenderObject() as RenderBox?;
-                if (viewerChildRenderBox != null) {
-                  _tempLineEndPoint = viewerChildRenderBox
-                      .globalToLocal(details.globalPosition);
-                }
-              });
-            }
-          },
-          onPanEnd: (details) {
-            setState(() {
-              _tempLineEndPoint = null;
-              _currentDraggedPort = null;
-            });
-          },
-          child: CustomPaint(
-            key: _interactiveViewerChildKey,
-            foregroundPainter: ConnectionPainter(
-              flowManager: _flowManager,
-              componentPositions: _componentPositions,
-              componentKeys: _componentKeys,
-              tempLineStartInfo: _currentDraggedPort,
-              tempLineEndPoint: _tempLineEndPoint,
-            ),
-            child: SizedBox(
-              width: _canvasWidth,
-              height: _canvasHeight,
-              child: Stack(
-                children: _flowManager.components.map((component) {
-                  return Positioned(
-                    left: _componentPositions[component.id]?.dx ?? 0,
-                    top: _componentPositions[component.id]?.dy ?? 0,
-                    child: Draggable<String>(
-                      data: component.id,
-                      feedback: Material(
-                        elevation: 5.0,
-                        color: Colors.transparent,
-                        child: ComponentWidget(
-                          component: component,
-                          widgetKey:
-                              _componentKeys[component.id] ?? GlobalKey(),
-                          position:
-                              _componentPositions[component.id] ?? Offset.zero,
-                          onValueChanged: _handleValueChanged,
-                          onPortDragStarted: _handlePortDragStarted,
-                          onPortDragAccepted: _handlePortDragAccepted,
-                        ),
-                      ),
-                      childWhenDragging: Opacity(
-                        opacity: 0.3,
-                        child: ComponentWidget(
-                          component: component,
-                          widgetKey: GlobalKey(),
-                          position:
-                              _componentPositions[component.id] ?? Offset.zero,
-                          onValueChanged: _handleValueChanged,
-                          onPortDragStarted: _handlePortDragStarted,
-                          onPortDragAccepted: _handlePortDragAccepted,
-                        ),
-                      ),
-                      onDragStarted: () {
-                        // Store the original position when drag starts
-                        _dragStartPosition = _componentPositions[component.id];
-                      },
-                      onDragEnd: (details) {
-                        final RenderBox? viewerChildRenderBox =
-                            _interactiveViewerChildKey.currentContext
-                                ?.findRenderObject() as RenderBox?;
-
-                        if (viewerChildRenderBox != null) {
-                          final Offset localOffset = viewerChildRenderBox
-                              .globalToLocal(details.offset);
+    return Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyZ):
+            const UndoIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyY):
+            const RedoIntent(),
+        // For Mac users
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyZ):
+            const UndoIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyY):
+            const RedoIntent(),
+        // Additional Mac shortcut (Command+Shift+Z)
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.shift,
+            LogicalKeyboardKey.keyZ): const RedoIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          UndoIntent: CallbackAction<UndoIntent>(
+            onInvoke: (UndoIntent intent) {
+              if (_commandHistory.canUndo) {
+                setState(() {
+                  _commandHistory.undo();
+                });
+              }
+              return null;
+            },
+          ),
+          RedoIntent: CallbackAction<RedoIntent>(
+            onInvoke: (RedoIntent intent) {
+              if (_commandHistory.canRedo) {
+                setState(() {
+                  _commandHistory.redo();
+                });
+              }
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text('Visual Flow Editor'),
+              actions: [
+                // Undo button
+                IconButton(
+                  icon: const Icon(Icons.undo),
+                  tooltip: _commandHistory.canUndo
+                      ? 'Undo: ${_commandHistory.lastUndoDescription}'
+                      : 'Undo',
+                  onPressed: _commandHistory.canUndo
+                      ? () {
                           setState(() {
-                            _componentPositions[component.id] = localOffset;
+                            _commandHistory.undo();
                           });
                         }
-                      },
-                      child: GestureDetector(
-                        onSecondaryTapDown: (details) {
-                          _showContextMenu(
-                              context, details.globalPosition, component);
-                        },
-                        child: ComponentWidget(
-                          component: component,
-                          widgetKey:
-                              _componentKeys[component.id] ?? GlobalKey(),
-                          position:
-                              _componentPositions[component.id] ?? Offset.zero,
-                          onValueChanged: _handleValueChanged,
-                          onPortDragStarted: _handlePortDragStarted,
-                          onPortDragAccepted: _handlePortDragAccepted,
-                        ),
-                      ),
+                      : null, // Disable button if cannot undo
+                ),
+                // Redo button
+                IconButton(
+                  icon: const Icon(Icons.redo),
+                  tooltip: _commandHistory.canRedo
+                      ? 'Redo: ${_commandHistory.lastRedoDescription}'
+                      : 'Redo',
+                  onPressed: _commandHistory.canRedo
+                      ? () {
+                          setState(() {
+                            _commandHistory.redo();
+                          });
+                        }
+                      : null, // Disable button if cannot redo
+                ),
+              ],
+            ),
+            body: InteractiveViewer(
+              transformationController: _transformationController,
+              boundaryMargin: EdgeInsets.all(_canvasWidth / 1.5),
+              minScale: 0.1,
+              maxScale: 3.0,
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  if (_currentDraggedPort != null) {
+                    setState(() {
+                      final RenderBox? viewerChildRenderBox =
+                          _interactiveViewerChildKey.currentContext
+                              ?.findRenderObject() as RenderBox?;
+                      if (viewerChildRenderBox != null) {
+                        _tempLineEndPoint = viewerChildRenderBox
+                            .globalToLocal(details.globalPosition);
+                      }
+                    });
+                  }
+                },
+                onPanEnd: (details) {
+                  setState(() {
+                    _tempLineEndPoint = null;
+                    _currentDraggedPort = null;
+                  });
+                },
+                child: CustomPaint(
+                  key: _interactiveViewerChildKey,
+                  foregroundPainter: ConnectionPainter(
+                    flowManager: _flowManager,
+                    componentPositions: _componentPositions,
+                    componentKeys: _componentKeys,
+                    tempLineStartInfo: _currentDraggedPort,
+                    tempLineEndPoint: _tempLineEndPoint,
+                  ),
+                  child: SizedBox(
+                    width: _canvasWidth,
+                    height: _canvasHeight,
+                    child: Stack(
+                      children: _flowManager.components.map((component) {
+                        return Positioned(
+                          left: _componentPositions[component.id]?.dx ?? 0,
+                          top: _componentPositions[component.id]?.dy ?? 0,
+                          child: Draggable<String>(
+                            data: component.id,
+                            feedback: Material(
+                              elevation: 5.0,
+                              color: Colors.transparent,
+                              child: ComponentWidget(
+                                component: component,
+                                widgetKey:
+                                    _componentKeys[component.id] ?? GlobalKey(),
+                                position: _componentPositions[component.id] ??
+                                    Offset.zero,
+                                onValueChanged: _handleValueChanged,
+                                onPortDragStarted: _handlePortDragStarted,
+                                onPortDragAccepted: _handlePortDragAccepted,
+                              ),
+                            ),
+                            childWhenDragging: Opacity(
+                              opacity: 0.3,
+                              child: ComponentWidget(
+                                component: component,
+                                widgetKey: GlobalKey(),
+                                position: _componentPositions[component.id] ??
+                                    Offset.zero,
+                                onValueChanged: _handleValueChanged,
+                                onPortDragStarted: _handlePortDragStarted,
+                                onPortDragAccepted: _handlePortDragAccepted,
+                              ),
+                            ),
+                            onDragStarted: () {
+                              // Store the original position when drag starts
+                              _dragStartPosition =
+                                  _componentPositions[component.id];
+                            },
+                            onDragEnd: (details) {
+                              final RenderBox? viewerChildRenderBox =
+                                  _interactiveViewerChildKey.currentContext
+                                      ?.findRenderObject() as RenderBox?;
+
+                              if (viewerChildRenderBox != null) {
+                                final Offset localOffset = viewerChildRenderBox
+                                    .globalToLocal(details.offset);
+
+                                if (_dragStartPosition != null &&
+                                    _dragStartPosition != localOffset) {
+                                  setState(() {
+                                    final command = MoveComponentCommand(
+                                      component.id,
+                                      localOffset,
+                                      _dragStartPosition!,
+                                      _componentPositions,
+                                    );
+                                    _commandHistory.execute(command);
+
+                                    _dragStartPosition = null;
+                                  });
+                                }
+                              }
+                            },
+                            child: GestureDetector(
+                              onSecondaryTapDown: (details) {
+                                _showContextMenu(
+                                    context, details.globalPosition, component);
+                              },
+                              child: ComponentWidget(
+                                component: component,
+                                widgetKey:
+                                    _componentKeys[component.id] ?? GlobalKey(),
+                                position: _componentPositions[component.id] ??
+                                    Offset.zero,
+                                onValueChanged: _handleValueChanged,
+                                onPortDragStarted: _handlePortDragStarted,
+                                onPortDragAccepted: _handlePortDragAccepted,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                  );
-                }).toList(),
+                  ),
+                ),
               ),
+            ),
+            floatingActionButton: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                FloatingActionButton(
+                  mini: true,
+                  onPressed: () {
+                    setState(() {
+                      _transformationController.value = Matrix4.identity();
+                    });
+                  },
+                  tooltip: 'Reset View',
+                  child: const Icon(Icons.center_focus_strong),
+                ),
+                const SizedBox(height: 16),
+                FloatingActionButton(
+                  onPressed: _showAddComponentDialog,
+                  tooltip: 'Add Component',
+                  child: const Icon(Icons.add),
+                ),
+              ],
             ),
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddComponentDialog,
-        tooltip: 'Add Component',
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -318,8 +443,8 @@ class _FlowScreenState extends State<FlowScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Add Component'),
-          content: Container(
+          title: const Text('Add Component'),
+          content: SizedBox(
             width: 300,
             height: 400,
             child: ListView(
@@ -363,13 +488,13 @@ class _FlowScreenState extends State<FlowScreen> {
           padding: const EdgeInsets.only(top: 12.0, bottom: 6.0),
           child: Text(
             title,
-            style: TextStyle(
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
             ),
           ),
         ),
-        Divider(),
+        const Divider(),
         Wrap(
           spacing: 8.0,
           runSpacing: 8.0,
@@ -380,7 +505,7 @@ class _FlowScreenState extends State<FlowScreen> {
                 Navigator.pop(context);
               },
               child: Container(
-                padding: EdgeInsets.all(8.0),
+                padding: const EdgeInsets.all(8.0),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey),
                   borderRadius: BorderRadius.circular(4.0),
@@ -388,7 +513,7 @@ class _FlowScreenState extends State<FlowScreen> {
                 child: Column(
                   children: [
                     Icon(_getIconForComponentType(type)),
-                    SizedBox(height: 4.0),
+                    const SizedBox(height: 4.0),
                     Text(_getNameForComponentType(type)),
                   ],
                 ),
@@ -509,8 +634,18 @@ class _FlowScreenState extends State<FlowScreen> {
     final newPosition = screenCenter + randomOffset;
     final newKey = GlobalKey();
 
+    Map<String, dynamic> state = {
+      'position': newPosition,
+      'key': newKey,
+      'positions': _componentPositions,
+      'keys': _componentKeys,
+    };
+
     setState(() {
-      _flowManager.addComponent(newComponent);
+      final command = AddComponentCommand(_flowManager, newComponent, state);
+      _commandHistory.execute(command);
+
+      // Set position and key directly since they're not handled in the command execution
       _componentPositions[newComponent.id] = newPosition;
       _componentKeys[newComponent.id] = newKey;
     });
@@ -576,7 +711,6 @@ class _FlowScreenState extends State<FlowScreen> {
     });
   }
 
-  // lib/unified/flow_screen.dart (continued)
   void _handleCopyComponent(Component component) {
     // Create a copy with the same type
     String newName = '${component.id} (Copy)';
@@ -610,8 +744,18 @@ class _FlowScreenState extends State<FlowScreen> {
 
     final newKey = GlobalKey();
 
+    Map<String, dynamic> state = {
+      'position': newPosition,
+      'key': newKey,
+      'positions': _componentPositions,
+      'keys': _componentKeys,
+    };
+
     setState(() {
-      _flowManager.addComponent(newComponent);
+      final command = AddComponentCommand(_flowManager, newComponent, state);
+      _commandHistory.execute(command);
+
+      // Set position and key directly since they're not handled in the command
       _componentPositions[newComponent.id] = newPosition;
       _componentKeys[newComponent.id] = newKey;
     });
@@ -637,59 +781,39 @@ class _FlowScreenState extends State<FlowScreen> {
           ),
           TextButton(
             onPressed: () {
-              setState(() {
-                // Check if the name is unique
-                String newName = nameController.text.trim();
-                if (newName.isEmpty) {
-                  newName = component.id;
-                } else if (_flowManager.components.any(
-                    (comp) => comp.id == newName && comp.id != component.id)) {
-                  // Name already exists, add a suffix
-                  int counter = 1;
-                  String baseName = newName;
-                  while (_flowManager.components.any((comp) =>
-                      comp.id == newName && comp.id != component.id)) {
-                    counter++;
-                    newName = '$baseName $counter';
-                  }
-                }
+              final oldId = component.id;
+              String newId = nameController.text.trim();
 
-                // Update the component ID and related maps
-                String oldId = component.id;
-                component.id = newName;
-
-                // Update positions and keys
-                if (_componentPositions.containsKey(oldId)) {
-                  final position = _componentPositions[oldId];
-                  _componentPositions.remove(oldId);
-                  _componentPositions[newName] = position!;
+              // Check if the name is unique or empty
+              if (newId.isEmpty) {
+                newId = oldId;
+              } else if (_flowManager.components
+                  .any((comp) => comp.id == newId && comp.id != oldId)) {
+                // Name already exists, add a suffix
+                int counter = 1;
+                String baseName = newId;
+                while (_flowManager.components
+                    .any((comp) => comp.id == newId && comp.id != oldId)) {
+                  counter++;
+                  newId = '$baseName $counter';
                 }
+              }
 
-                if (_componentKeys.containsKey(oldId)) {
-                  final key = _componentKeys[oldId];
-                  _componentKeys.remove(oldId);
-                  _componentKeys[newName] = key!;
-                }
-
-                // Update connections
-                for (var connection in _flowManager.connections) {
-                  if (connection.fromComponentId == oldId) {
-                    connection.fromComponentId = newName;
-                  }
-                  if (connection.toComponentId == oldId) {
-                    connection.toComponentId = newName;
-                  }
-                }
-
-                // Update input connections in other components
-                for (var otherComponent in _flowManager.components) {
-                  for (var entry in otherComponent.inputConnections.entries) {
-                    if (entry.value.componentId == oldId) {
-                      entry.value.componentId = newName;
-                    }
-                  }
-                }
-              });
+              // Only create a command if the name actually changed
+              if (oldId != newId) {
+                setState(() {
+                  final command = EditComponentCommand(
+                    _flowManager,
+                    oldId,
+                    newId,
+                    _componentPositions,
+                    _componentKeys,
+                    _flowManager.connections,
+                    _flowManager.components,
+                  );
+                  _commandHistory.execute(command);
+                });
+              }
               Navigator.pop(context);
             },
             child: Text('Save'),
@@ -700,10 +824,25 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _handleDeleteComponent(Component component) {
+    // Find all connections related to this component before removing
+    final affectedConnections = _flowManager.connections
+        .where((connection) =>
+            connection.fromComponentId == component.id ||
+            connection.toComponentId == component.id)
+        .toList();
+
     setState(() {
-      _flowManager.removeComponent(component.id);
-      _componentPositions.remove(component.id);
-      _componentKeys.remove(component.id);
+      final oldPosition = _componentPositions[component.id] ?? Offset.zero;
+      final oldKey = _componentKeys[component.id];
+
+      final command = RemoveComponentCommand(
+        _flowManager,
+        component,
+        oldPosition,
+        oldKey,
+        affectedConnections,
+      );
+      _commandHistory.execute(command);
     });
   }
 }
