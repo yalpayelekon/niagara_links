@@ -1,10 +1,21 @@
-// lib/calculator_screen.dart
+// lib/calculator/calculator_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'calculator_models.dart';
 import 'calculator_connection.dart';
 import 'calculator_item_widget.dart';
 import 'calculator_connection_painter.dart';
+import 'calculator_command.dart';
+
+// Custom intents for undo/redo actions
+class UndoIntent extends Intent {
+  const UndoIntent();
+}
+
+class RedoIntent extends Intent {
+  const RedoIntent();
+}
 
 class CalculatorScreen extends StatefulWidget {
   const CalculatorScreen({super.key});
@@ -15,6 +26,7 @@ class CalculatorScreen extends StatefulWidget {
 
 class _CalculatorScreenState extends State<CalculatorScreen> {
   final CalculatorManager _calculatorManager = CalculatorManager();
+  final CommandHistory _commandHistory = CommandHistory();
 
   // Item positions
   final Map<String, Offset> _itemPositions = {};
@@ -24,6 +36,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   PortDragInfo? _currentDraggedPort;
   Offset? _tempLineEndPoint;
+  Offset? _dragStartPosition; // Track starting position for move commands
 
   final TransformationController _transformationController =
       TransformationController();
@@ -90,12 +103,31 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     // Calculate initial values
     _calculatorManager.recalculateAll();
+
+    // Clear the command history since we're setting up the initial state
+    _commandHistory.clear();
   }
 
   void _handleValueChanged(String itemId, int portIndex, double newValue) {
-    setState(() {
-      _calculatorManager.updatePortValue(itemId, portIndex, newValue);
-    });
+    // Get the current value before changing it
+    CalculatorItem? item = _calculatorManager.findItemById(itemId);
+    if (item != null && portIndex < item.ports.length) {
+      double oldValue = item.ports[portIndex].value;
+
+      // Only create a command if the value actually changed
+      if (oldValue != newValue) {
+        setState(() {
+          final command = UpdatePortValueCommand(
+            _calculatorManager,
+            itemId,
+            portIndex,
+            newValue,
+            oldValue,
+          );
+          _commandHistory.execute(command);
+        });
+      }
+    }
   }
 
   void _handlePortDragStarted(PortDragInfo portInfo) {
@@ -121,13 +153,26 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         bool targetIsInput = targetItem.ports[targetPortInfo.portIndex].isInput;
 
         if (sourceIsOutput && targetIsInput) {
-          setState(() {
-            _calculatorManager.createConnection(
+          // Check if the connection already exists
+          bool connectionExists = _calculatorManager.connections.any(
+              (connection) =>
+                  connection.fromItemId == _currentDraggedPort!.itemId &&
+                  connection.fromPortIndex == _currentDraggedPort!.portIndex &&
+                  connection.toItemId == targetPortInfo.itemId &&
+                  connection.toPortIndex == targetPortInfo.portIndex);
+
+          if (!connectionExists) {
+            setState(() {
+              final command = CreateConnectionCommand(
+                _calculatorManager,
                 _currentDraggedPort!.itemId,
                 _currentDraggedPort!.portIndex,
                 targetPortInfo.itemId,
-                targetPortInfo.portIndex);
-          });
+                targetPortInfo.portIndex,
+              );
+              _commandHistory.execute(command);
+            });
+          }
         } else if (!targetIsInput && sourceIsOutput) {
           // Cannot connect output to output
           ScaffoldMessenger.of(context).showSnackBar(
@@ -148,115 +193,217 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Math Flow Calculator'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _showAddItemDialog,
-            tooltip: 'Add Node',
+    return Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyZ):
+            const UndoIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyY):
+            const RedoIntent(),
+        // For Mac users
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyZ):
+            const UndoIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyY):
+            const RedoIntent(),
+        // Additional Mac shortcut (Command+Shift+Z)
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.shift,
+            LogicalKeyboardKey.keyZ): const RedoIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          UndoIntent: CallbackAction<UndoIntent>(
+            onInvoke: (UndoIntent intent) {
+              if (_commandHistory.canUndo) {
+                setState(() {
+                  _commandHistory.undo();
+                });
+              }
+              return null;
+            },
           ),
-        ],
-      ),
-      body: InteractiveViewer(
-        transformationController: _transformationController,
-        boundaryMargin: EdgeInsets.all(_canvasWidth / 1.5),
-        minScale: 0.1,
-        maxScale: 3.0,
-        child: GestureDetector(
-          onPanUpdate: (details) {
-            if (_currentDraggedPort != null) {
-              setState(() {
-                final RenderBox? viewerChildRenderBox =
-                    _interactiveViewerChildKey.currentContext
-                        ?.findRenderObject() as RenderBox?;
-                if (viewerChildRenderBox != null) {
-                  _tempLineEndPoint = viewerChildRenderBox
-                      .globalToLocal(details.globalPosition);
-                }
-              });
-            }
-          },
-          onPanEnd: (details) {
-            setState(() {
-              _tempLineEndPoint = null;
-              _currentDraggedPort = null;
-            });
-          },
-          child: CustomPaint(
-            key: _interactiveViewerChildKey,
-            foregroundPainter: CalculatorConnectionPainter(
-              calculatorManager: _calculatorManager,
-              itemPositions: _itemPositions,
-              itemKeys: _itemKeys,
-              tempLineStartInfo: _currentDraggedPort,
-              tempLineEndPoint: _tempLineEndPoint,
-            ),
-            child: SizedBox(
-              width: _canvasWidth,
-              height: _canvasHeight,
-              child: Stack(
-                children: _calculatorManager.items.map((item) {
-                  return Positioned(
-                    left: _itemPositions[item.id]?.dx ?? 0,
-                    top: _itemPositions[item.id]?.dy ?? 0,
-                    child: Draggable<String>(
-                      data: item.id,
-                      feedback: Material(
-                        elevation: 5.0,
-                        color: Colors.transparent,
-                        child: CalculatorItemWidget(
-                          item: item,
-                          widgetKey: _itemKeys[item.id] ?? GlobalKey(),
-                          position: _itemPositions[item.id] ?? Offset.zero,
-                          onValueChanged: _handleValueChanged,
-                          onPortDragStarted: _handlePortDragStarted,
-                          onPortDragAccepted: _handlePortDragAccepted,
-                        ),
-                      ),
-                      childWhenDragging: Opacity(
-                        opacity: 0.3,
-                        child: CalculatorItemWidget(
-                          item: item,
-                          widgetKey: GlobalKey(),
-                          position: _itemPositions[item.id] ?? Offset.zero,
-                          onValueChanged: _handleValueChanged,
-                          onPortDragStarted: _handlePortDragStarted,
-                          onPortDragAccepted: _handlePortDragAccepted,
-                        ),
-                      ),
-                      onDragEnd: (details) {
-                        final RenderBox? viewerChildRenderBox =
-                            _interactiveViewerChildKey.currentContext
-                                ?.findRenderObject() as RenderBox?;
-
-                        if (viewerChildRenderBox != null) {
-                          final Offset localOffset = viewerChildRenderBox
-                              .globalToLocal(details.offset);
+          RedoIntent: CallbackAction<RedoIntent>(
+            onInvoke: (RedoIntent intent) {
+              if (_commandHistory.canRedo) {
+                setState(() {
+                  _commandHistory.redo();
+                });
+              }
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text('Math Flow Calculator'),
+              actions: [
+                // Undo button
+                IconButton(
+                  icon: const Icon(Icons.undo),
+                  tooltip: _commandHistory.canUndo
+                      ? 'Undo: ${_commandHistory.lastUndoDescription}'
+                      : 'Undo',
+                  onPressed: _commandHistory.canUndo
+                      ? () {
                           setState(() {
-                            _itemPositions[item.id] = localOffset;
+                            _commandHistory.undo();
                           });
                         }
-                      },
-                      child: GestureDetector(
-                        onSecondaryTapDown: (details) {
-                          _showContextMenu(
-                              context, details.globalPosition, item);
-                        },
-                        child: CalculatorItemWidget(
-                          item: item,
-                          widgetKey: _itemKeys[item.id] ?? GlobalKey(),
-                          position: _itemPositions[item.id] ?? Offset.zero,
-                          onValueChanged: _handleValueChanged,
-                          onPortDragStarted: _handlePortDragStarted,
-                          onPortDragAccepted: _handlePortDragAccepted,
-                        ),
-                      ),
+                      : null, // Disable button if cannot undo
+                ),
+                // Redo button
+                IconButton(
+                  icon: const Icon(Icons.redo),
+                  tooltip: _commandHistory.canRedo
+                      ? 'Redo: ${_commandHistory.lastRedoDescription}'
+                      : 'Redo',
+                  onPressed: _commandHistory.canRedo
+                      ? () {
+                          setState(() {
+                            _commandHistory.redo();
+                          });
+                        }
+                      : null, // Disable button if cannot redo
+                ),
+                // Add node button
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: _showAddItemDialog,
+                  tooltip: 'Add Node',
+                ),
+              ],
+            ),
+            body: InteractiveViewer(
+              transformationController: _transformationController,
+              boundaryMargin: EdgeInsets.all(_canvasWidth / 1.5),
+              minScale: 0.1,
+              maxScale: 3.0,
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  if (_currentDraggedPort != null) {
+                    setState(() {
+                      final RenderBox? viewerChildRenderBox =
+                          _interactiveViewerChildKey.currentContext
+                              ?.findRenderObject() as RenderBox?;
+                      if (viewerChildRenderBox != null) {
+                        _tempLineEndPoint = viewerChildRenderBox
+                            .globalToLocal(details.globalPosition);
+                      }
+                    });
+                  }
+                },
+                onPanEnd: (details) {
+                  setState(() {
+                    _tempLineEndPoint = null;
+                    _currentDraggedPort = null;
+                  });
+                },
+                child: CustomPaint(
+                  key: _interactiveViewerChildKey,
+                  foregroundPainter: CalculatorConnectionPainter(
+                    calculatorManager: _calculatorManager,
+                    itemPositions: _itemPositions,
+                    itemKeys: _itemKeys,
+                    tempLineStartInfo: _currentDraggedPort,
+                    tempLineEndPoint: _tempLineEndPoint,
+                  ),
+                  child: SizedBox(
+                    width: _canvasWidth,
+                    height: _canvasHeight,
+                    child: Stack(
+                      children: _calculatorManager.items.map((item) {
+                        return Positioned(
+                          left: _itemPositions[item.id]?.dx ?? 0,
+                          top: _itemPositions[item.id]?.dy ?? 0,
+                          child: Draggable<String>(
+                            data: item.id,
+                            feedback: Material(
+                              elevation: 5.0,
+                              color: Colors.transparent,
+                              child: CalculatorItemWidget(
+                                item: item,
+                                widgetKey: _itemKeys[item.id] ?? GlobalKey(),
+                                position:
+                                    _itemPositions[item.id] ?? Offset.zero,
+                                onValueChanged: _handleValueChanged,
+                                onPortDragStarted: _handlePortDragStarted,
+                                onPortDragAccepted: _handlePortDragAccepted,
+                              ),
+                            ),
+                            childWhenDragging: Opacity(
+                              opacity: 0.3,
+                              child: CalculatorItemWidget(
+                                item: item,
+                                widgetKey: GlobalKey(),
+                                position:
+                                    _itemPositions[item.id] ?? Offset.zero,
+                                onValueChanged: _handleValueChanged,
+                                onPortDragStarted: _handlePortDragStarted,
+                                onPortDragAccepted: _handlePortDragAccepted,
+                              ),
+                            ),
+                            onDragStarted: () {
+                              // Store the original position when drag starts
+                              _dragStartPosition = _itemPositions[item.id];
+                            },
+                            onDragEnd: (details) {
+                              final RenderBox? viewerChildRenderBox =
+                                  _interactiveViewerChildKey.currentContext
+                                      ?.findRenderObject() as RenderBox?;
+
+                              if (viewerChildRenderBox != null) {
+                                final Offset localOffset = viewerChildRenderBox
+                                    .globalToLocal(details.offset);
+
+                                // Only create a command if the position actually changed
+                                if (_dragStartPosition != localOffset) {
+                                  setState(() {
+                                    // Create a move command to track this change
+                                    final command = MoveItemCommand(
+                                      item.id,
+                                      localOffset,
+                                      _dragStartPosition!,
+                                      _itemPositions,
+                                    );
+                                    _commandHistory.execute(command);
+
+                                    // Reset the drag start position
+                                    _dragStartPosition = null;
+                                  });
+                                }
+                              }
+                            },
+                            child: GestureDetector(
+                              onSecondaryTapDown: (details) {
+                                _showContextMenu(
+                                    context, details.globalPosition, item);
+                              },
+                              child: CalculatorItemWidget(
+                                item: item,
+                                widgetKey: _itemKeys[item.id] ?? GlobalKey(),
+                                position:
+                                    _itemPositions[item.id] ?? Offset.zero,
+                                onValueChanged: _handleValueChanged,
+                                onPortDragStarted: _handlePortDragStarted,
+                                onPortDragAccepted: _handlePortDragAccepted,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                  );
-                }).toList(),
+                  ),
+                ),
               ),
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                setState(() {
+                  _transformationController.value = Matrix4.identity();
+                });
+              },
+              tooltip: 'Reset View',
+              child: const Icon(Icons.center_focus_strong),
             ),
           ),
         ),
@@ -352,9 +499,28 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       id: name,
       operationType: operationType,
     );
-    _calculatorManager.addItem(newItem);
-    _itemPositions[newItem.id] = const Offset(100, 100);
-    _itemKeys[newItem.id] = GlobalKey();
+
+    final newPosition = const Offset(100, 100);
+    final newKey = GlobalKey();
+
+    Map<String, dynamic> state = {
+      'position': newPosition,
+      'key': newKey,
+      'positions': _itemPositions,
+      'keys': _itemKeys,
+    };
+
+    setState(() {
+      final command = AddItemCommand(_calculatorManager, newItem, state);
+      _commandHistory.execute(command);
+
+      // Set position and key directly since they're not handled in the command execution
+      _itemPositions[newItem.id] = newPosition;
+      _itemKeys[newItem.id] = newKey;
+
+      // Calculate initial values for the new item
+      newItem.calculate();
+    });
   }
 
   void _showContextMenu(
@@ -414,38 +580,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           _handleDeleteItem(item);
           break;
       }
-    });
-  }
-
-  void _handleCopyItem(CalculatorItem item) {
-    setState(() {
-      // Create a new item with the same operation type
-      final newItem = CalculatorItem(
-        id: '${item.id} (Copy)',
-        operationType: item.operationType,
-      );
-
-      // Copy values from original ports
-      for (int i = 0; i < item.ports.length && i < newItem.ports.length; i++) {
-        if (item.ports[i].isInput) {
-          newItem.ports[i].value = item.ports[i].value;
-        }
-      }
-
-      // Add the new item to the calculator manager
-      _calculatorManager.addItem(newItem);
-
-      // Position the copy slightly offset from the original
-      _itemPositions[newItem.id] = Offset(
-        (_itemPositions[item.id]?.dx ?? 0) + 20,
-        (_itemPositions[item.id]?.dy ?? 0) + 20,
-      );
-
-      // Create a new key for the copied item
-      _itemKeys[newItem.id] = GlobalKey();
-
-      // Calculate initial values for the new item
-      newItem.calculate();
     });
   }
 
@@ -521,31 +655,26 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 TextButton(
                   onPressed: () {
                     // Apply changes and close dialog
-                    this.setState(() {
-                      // Store current port values before changing type
-                      Map<int, double> oldValues = {};
-                      for (var port in item.ports) {
-                        oldValues[port.index] = port.value;
-                      }
+                    final oldName = item.id;
+                    final newName = itemIdController.text;
+                    final oldType = item.operationType;
 
-                      // Update item properties
-                      item.id = itemIdController.text;
-
-                      // Change operation type if different
-                      if (item.operationType != selectedOperationType) {
-                        item.updateOperationType(selectedOperationType);
-
-                        // Copy over old values where possible
-                        for (var port in item.ports) {
-                          if (port.isInput &&
-                              oldValues.containsKey(port.index)) {
-                            port.value = oldValues[port.index]!;
-                          }
-                        }
-                      }
-
-                      _calculatorManager.recalculateAll();
-                    });
+                    if (oldName != newName ||
+                        oldType != selectedOperationType) {
+                      this.setState(() {
+                        final command = EditItemCommand(
+                          _calculatorManager,
+                          oldName, // Use old name to find the item
+                          newName,
+                          oldName,
+                          selectedOperationType,
+                          oldType,
+                          _itemPositions,
+                          _itemKeys,
+                        );
+                        _commandHistory.execute(command);
+                      });
+                    }
 
                     Navigator.of(context).pop();
                   },
@@ -559,12 +688,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  void _handleDeleteItem(CalculatorItem item) {
-    setState(() {
-      _calculatorManager.removeItem(item.id);
+  void _handleCopyItem(CalculatorItem item) {}
 
-      _itemPositions.remove(item.id);
-      _itemKeys.remove(item.id);
-    });
-  }
+  void _handleDeleteItem(CalculatorItem item) {}
 }
