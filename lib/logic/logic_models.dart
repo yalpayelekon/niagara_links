@@ -1,19 +1,19 @@
 enum OperationType {
-  add,
-  subtract,
-  multiply,
-  divide,
+  and,
+  or,
+  xor,
+  not,
   input,
 }
 
-class CalculatorPort {
+class LogicPort {
   final bool isInput; // true for input, false for output
-  double value;
+  bool value;
   final int index;
 
-  CalculatorPort({
+  LogicPort({
     required this.isInput,
-    this.value = 0.0,
+    this.value = false,
     required this.index,
   });
 }
@@ -21,7 +21,7 @@ class CalculatorPort {
 class CalculatorItem {
   String id;
   OperationType operationType;
-  List<CalculatorPort> ports = [];
+  List<LogicPort> ports = [];
 
   Map<int, ConnectionEndpoint> inputConnections = {};
 
@@ -36,16 +36,19 @@ class CalculatorItem {
     ports.clear();
 
     switch (operationType) {
-      case OperationType.add:
-      case OperationType.subtract:
-      case OperationType.multiply:
-      case OperationType.divide:
-        ports.add(CalculatorPort(isInput: true, index: 0)); // Input A
-        ports.add(CalculatorPort(isInput: true, index: 1)); // Input B
-        ports.add(CalculatorPort(isInput: false, index: 2)); // Output
+      case OperationType.and:
+      case OperationType.or:
+      case OperationType.xor:
+        ports.add(LogicPort(isInput: true, index: 0)); // Input A
+        ports.add(LogicPort(isInput: true, index: 1)); // Input B
+        ports.add(LogicPort(isInput: false, index: 2)); // Output
         break;
       case OperationType.input:
-        ports.add(CalculatorPort(isInput: false, index: 0)); // Output
+        ports.add(LogicPort(isInput: false, index: 0)); // Output
+        break;
+      case OperationType.not:
+        ports.add(LogicPort(isInput: true, index: 0)); // Input
+        ports.add(LogicPort(isInput: false, index: 1)); // Output
         break;
     }
   }
@@ -56,23 +59,26 @@ class CalculatorItem {
       return;
     }
 
-    double inputA = ports[0].value;
-    double inputB = ports[1].value;
-    double result = 0.0;
+    if (operationType == OperationType.not) {
+      bool input = ports[0].value;
+      bool result = !input;
+      ports[1].value = result;
+      return;
+    }
+
+    bool inputA = ports[0].value;
+    bool inputB = ports[1].value;
+    bool result = false;
 
     switch (operationType) {
-      case OperationType.add:
-        result = inputA + inputB;
+      case OperationType.and:
+        result = inputA && inputB;
         break;
-      case OperationType.subtract:
-        result = inputA - inputB;
+      case OperationType.or:
+        result = inputA || inputB;
         break;
-      case OperationType.multiply:
-        result = inputA * inputB;
-        break;
-      case OperationType.divide:
-        // Prevent division by zero
-        result = inputB != 0 ? inputA / inputB : double.infinity;
+      case OperationType.xor:
+        result = inputA != inputB;
         break;
       default:
         break;
