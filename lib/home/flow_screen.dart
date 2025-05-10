@@ -264,6 +264,24 @@ class _FlowScreenState extends State<FlowScreen> {
     }
   }
 
+  Offset? getPosition(Offset globalPosition) {
+    final RenderBox? viewerChildRenderBox =
+        _interactiveViewerChildKey.currentContext?.findRenderObject()
+            as RenderBox?;
+
+    if (viewerChildRenderBox != null) {
+      final Offset localPosition =
+          viewerChildRenderBox.globalToLocal(globalPosition);
+
+      final matrix = _transformationController.value;
+      final inverseMatrix = Matrix4.inverted(matrix);
+      final canvasPosition =
+          MatrixUtils.transformPoint(inverseMatrix, localPosition);
+      return canvasPosition;
+    }
+    return null;
+  }
+
   void _handlePortDragStarted(PortDragInfo portInfo) {
     setState(() {
       _currentDraggedPort = portInfo;
@@ -455,29 +473,15 @@ class _FlowScreenState extends State<FlowScreen> {
                   ),
                   child: GestureDetector(
                     onSecondaryTapDown: (TapDownDetails details) {
-                      // Get the local position relative to the canvas
-                      final RenderBox? viewerChildRenderBox =
-                          _interactiveViewerChildKey.currentContext
-                              ?.findRenderObject() as RenderBox?;
-
-                      if (viewerChildRenderBox != null) {
-                        // Convert global position to local canvas coordinates
-                        final Offset localPosition = viewerChildRenderBox
-                            .globalToLocal(details.globalPosition);
-
-                        // Apply the inverse of the current transformation to get the actual canvas position
-                        final matrix = _transformationController.value;
-                        final inverseMatrix = Matrix4.inverted(matrix);
-                        final canvasPosition = MatrixUtils.transformPoint(
-                            inverseMatrix, localPosition);
-
+                      Offset? canvasPosition =
+                          getPosition(details.globalPosition);
+                      if (canvasPosition != null) {
                         bool isClickOnComponent = false;
 
                         for (final componentId in _componentPositions.keys) {
                           final componentPos =
                               _componentPositions[componentId]!;
 
-                          // Estimate component bounds (adjust these values based on your actual component sizes)
                           const double componentWidth = 180.0;
                           const double componentHeight = 150.0;
 
@@ -494,7 +498,6 @@ class _FlowScreenState extends State<FlowScreen> {
                           }
                         }
 
-                        // Only show canvas context menu if we're not clicking on a component
                         if (!isClickOnComponent) {
                           _showCanvasContextMenu(
                               context, details.globalPosition);
@@ -657,20 +660,7 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _showCanvasContextMenu(BuildContext context, Offset globalPosition) {
-    Offset canvasPosition = Offset.zero;
-
-    final RenderBox? viewerChildRenderBox =
-        _interactiveViewerChildKey.currentContext?.findRenderObject()
-            as RenderBox?;
-
-    if (viewerChildRenderBox != null) {
-      final Offset localPosition =
-          viewerChildRenderBox.globalToLocal(globalPosition);
-
-      final matrix = _transformationController.value;
-      final inverseMatrix = Matrix4.inverted(matrix);
-      canvasPosition = MatrixUtils.transformPoint(inverseMatrix, localPosition);
-    }
+    Offset canvasPosition = getPosition(globalPosition)!;
 
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
