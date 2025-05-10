@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:niagara_links/home/grid_painter.dart';
 import 'package:niagara_links/models/command_history.dart';
 import 'package:niagara_links/models/component.dart';
 import '../models/enums.dart';
@@ -42,7 +43,6 @@ class _FlowScreenState extends State<FlowScreen> {
       TransformationController();
   final GlobalKey _interactiveViewerChildKey = GlobalKey();
 
-  // Dynamic canvas properties
   Size _canvasSize = const Size(2000, 2000); // Initial canvas size
   Offset _canvasOffset = Offset.zero; // Canvas position within the view
   static const double _canvasPadding = 100.0; // Padding around components
@@ -662,16 +662,6 @@ class _FlowScreenState extends State<FlowScreen> {
             ],
           ),
         ),
-        PopupMenuItem(
-          value: 'canvas-properties',
-          child: Row(
-            children: const [
-              Icon(Icons.settings, size: 18),
-              SizedBox(width: 8),
-              Text('Canvas Properties'),
-            ],
-          ),
-        ),
       ],
     ).then((value) {
       if (value == null) return;
@@ -703,15 +693,6 @@ class _FlowScreenState extends State<FlowScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Clear canvas functionality coming soon'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-          break;
-        case 'canvas-properties':
-          // Placeholder for canvas properties
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Canvas properties coming soon'),
               duration: Duration(seconds: 1),
             ),
           );
@@ -1106,24 +1087,4 @@ class _FlowScreenState extends State<FlowScreen> {
       _updateCanvasSize();
     });
   }
-}
-
-class GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.grey[300]!
-      ..strokeWidth = 0.5;
-
-    for (double i = 0; i < size.width; i += 20) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-
-    for (double i = 0; i < size.height; i += 20) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
