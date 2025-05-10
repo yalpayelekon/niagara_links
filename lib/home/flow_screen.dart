@@ -20,6 +20,14 @@ class RedoIntent extends Intent {
   const RedoIntent();
 }
 
+class CopyIntent extends Intent {
+  const CopyIntent();
+}
+
+class PasteIntent extends Intent {
+  const PasteIntent();
+}
+
 class FlowScreen extends StatefulWidget {
   const FlowScreen({super.key});
 
@@ -47,6 +55,7 @@ class _FlowScreenState extends State<FlowScreen> {
   static const double _canvasPadding = 100.0; // Padding around components
 
   Component? _clipboardComponent;
+  Component? _selectedComponent;
 
   @override
   void initState() {
@@ -311,11 +320,19 @@ class _FlowScreenState extends State<FlowScreen> {
             const UndoIntent(),
         LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyY):
             const RedoIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
+            const CopyIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
+            const PasteIntent(),
         // For Mac users
         LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyZ):
             const UndoIntent(),
         LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyY):
             const RedoIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyC):
+            const CopyIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyV):
+            const PasteIntent(),
         // Additional Mac shortcut (Command+Shift+Z)
         LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.shift,
             LogicalKeyboardKey.keyZ): const RedoIntent(),
@@ -338,6 +355,38 @@ class _FlowScreenState extends State<FlowScreen> {
                 setState(() {
                   _commandHistory.redo();
                 });
+              }
+              return null;
+            },
+          ),
+          CopyIntent: CallbackAction<CopyIntent>(
+            onInvoke: (CopyIntent intent) {
+              if (_selectedComponent != null) {
+                _handleCopyComponent(_selectedComponent!);
+              }
+              return null;
+            },
+          ),
+          PasteIntent: CallbackAction<PasteIntent>(
+            onInvoke: (PasteIntent intent) {
+              if (_clipboardComponent != null) {
+                // Get center of visible viewport
+                final RenderBox? viewerChildRenderBox =
+                    _interactiveViewerChildKey.currentContext
+                        ?.findRenderObject() as RenderBox?;
+
+                if (viewerChildRenderBox != null) {
+                  final viewportSize = viewerChildRenderBox.size;
+                  final viewportCenter =
+                      Offset(viewportSize.width / 2, viewportSize.height / 2);
+
+                  final matrix = _transformationController.value;
+                  final inverseMatrix = Matrix4.inverted(matrix);
+                  final canvasPosition =
+                      MatrixUtils.transformPoint(inverseMatrix, viewportCenter);
+
+                  _handlePasteComponent(canvasPosition);
+                }
               }
               return null;
             },
@@ -422,7 +471,6 @@ class _FlowScreenState extends State<FlowScreen> {
                         final canvasPosition = MatrixUtils.transformPoint(
                             inverseMatrix, localPosition);
 
-                        // Check if we're clicking on empty space (not on a component)
                         bool isClickOnComponent = false;
 
                         for (final componentId in _componentPositions.keys) {
@@ -488,6 +536,8 @@ class _FlowScreenState extends State<FlowScreen> {
                                     color: Colors.transparent,
                                     child: ComponentWidget(
                                       component: component,
+                                      isSelected: _selectedComponent?.id ==
+                                          component.id,
                                       widgetKey: _componentKeys[component.id] ??
                                           GlobalKey(),
                                       position:
@@ -503,6 +553,8 @@ class _FlowScreenState extends State<FlowScreen> {
                                     opacity: 0.3,
                                     child: ComponentWidget(
                                       component: component,
+                                      isSelected: _selectedComponent?.id ==
+                                          component.id,
                                       widgetKey: GlobalKey(),
                                       position:
                                           _componentPositions[component.id] ??
@@ -541,7 +593,7 @@ class _FlowScreenState extends State<FlowScreen> {
                                           _commandHistory.execute(command);
 
                                           _dragStartPosition = null;
-                                          // Update canvas size after moving
+                                          _selectedComponent = component;
                                           _updateCanvasSize();
                                         });
                                       }
@@ -552,8 +604,15 @@ class _FlowScreenState extends State<FlowScreen> {
                                       _showContextMenu(context,
                                           details.globalPosition, component);
                                     },
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedComponent = component;
+                                      });
+                                    },
                                     child: ComponentWidget(
                                       component: component,
+                                      isSelected: _selectedComponent?.id ==
+                                          component.id,
                                       widgetKey: _componentKeys[component.id] ??
                                           GlobalKey(),
                                       position:

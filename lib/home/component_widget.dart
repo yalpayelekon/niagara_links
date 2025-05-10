@@ -16,6 +16,7 @@ class ComponentWidget extends StatefulWidget {
   final Component component;
   final GlobalKey widgetKey;
   final Offset position;
+  final bool isSelected;
   final Function(String, int, dynamic) onValueChanged;
   final Function(PortDragInfo) onPortDragStarted;
   final Function(PortDragInfo) onPortDragAccepted;
@@ -23,6 +24,7 @@ class ComponentWidget extends StatefulWidget {
   const ComponentWidget({
     super.key,
     required this.component,
+    required this.isSelected,
     required this.widgetKey,
     required this.position,
     required this.onValueChanged,
@@ -56,8 +58,8 @@ class _ComponentWidgetState extends State<ComponentWidget> {
           ),
         ],
         border: Border.all(
-          color: Colors.black.withOpacity(0.6),
-          width: 1.5,
+          color: widget.isSelected ? Colors.indigo : Colors.transparent,
+          width: widget.isSelected ? 2.0 : 0.3,
         ),
       ),
       child: Column(
