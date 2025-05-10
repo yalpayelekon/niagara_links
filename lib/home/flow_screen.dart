@@ -348,7 +348,6 @@ class _FlowScreenState extends State<FlowScreen> {
             appBar: AppBar(
               title: const Text('Visual Flow Editor'),
               actions: [
-                // Show canvas size
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Center(
@@ -358,7 +357,6 @@ class _FlowScreenState extends State<FlowScreen> {
                     ),
                   ),
                 ),
-                // Undo button
                 IconButton(
                   icon: const Icon(Icons.undo),
                   tooltip: _commandHistory.canUndo
@@ -372,7 +370,6 @@ class _FlowScreenState extends State<FlowScreen> {
                         }
                       : null, // Disable button if cannot undo
                 ),
-                // Redo button
                 IconButton(
                   icon: const Icon(Icons.redo),
                   tooltip: _commandHistory.canRedo
@@ -406,120 +403,173 @@ class _FlowScreenState extends State<FlowScreen> {
                     tempLineStartInfo: _currentDraggedPort,
                     tempLineEndPoint: _tempLineEndPoint,
                   ),
-                  child: Container(
-                    width: _canvasSize.width,
-                    height: _canvasSize.height,
-                    color: Colors.grey[50],
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Grid background
-                        CustomPaint(
-                          painter: GridPainter(),
-                          size: _canvasSize,
-                        ),
-                        // Empty canvas message
-                        if (_flowManager.components.isEmpty)
-                          const Center(
-                            child: Text(
-                              'Add components to the canvas',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 18,
+                  child: GestureDetector(
+                    onSecondaryTapDown: (TapDownDetails details) {
+                      // Get the local position relative to the canvas
+                      final RenderBox? viewerChildRenderBox =
+                          _interactiveViewerChildKey.currentContext
+                              ?.findRenderObject() as RenderBox?;
+
+                      if (viewerChildRenderBox != null) {
+                        // Convert global position to local canvas coordinates
+                        final Offset localPosition = viewerChildRenderBox
+                            .globalToLocal(details.globalPosition);
+
+                        // Apply the inverse of the current transformation to get the actual canvas position
+                        final matrix = _transformationController.value;
+                        final inverseMatrix = Matrix4.inverted(matrix);
+                        final canvasPosition = MatrixUtils.transformPoint(
+                            inverseMatrix, localPosition);
+
+                        // Check if we're clicking on empty space (not on a component)
+                        bool isClickOnComponent = false;
+
+                        for (final componentId in _componentPositions.keys) {
+                          final componentPos =
+                              _componentPositions[componentId]!;
+
+                          // Estimate component bounds (adjust these values based on your actual component sizes)
+                          const double componentWidth = 180.0;
+                          const double componentHeight = 150.0;
+
+                          final componentRect = Rect.fromLTWH(
+                            componentPos.dx,
+                            componentPos.dy,
+                            componentWidth,
+                            componentHeight,
+                          );
+
+                          if (componentRect.contains(canvasPosition)) {
+                            isClickOnComponent = true;
+                            break;
+                          }
+                        }
+
+                        // Only show canvas context menu if we're not clicking on a component
+                        if (!isClickOnComponent) {
+                          _showCanvasContextMenu(
+                              context, details.globalPosition);
+                        }
+                      }
+                    },
+                    child: Container(
+                      width: _canvasSize.width,
+                      height: _canvasSize.height,
+                      color: Colors.grey[50],
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          CustomPaint(
+                            painter: GridPainter(),
+                            size: _canvasSize,
+                          ),
+                          if (_flowManager.components.isEmpty)
+                            const Center(
+                              child: Text(
+                                'Add components to the canvas',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 18,
+                                ),
                               ),
                             ),
-                          ),
-                        // Components
-                        ..._flowManager.components.map(
-                          (component) {
-                            return Positioned(
-                              left: _componentPositions[component.id]?.dx ?? 0,
-                              top: _componentPositions[component.id]?.dy ?? 0,
-                              child: Draggable<String>(
-                                data: component.id,
-                                feedback: Material(
-                                  elevation: 5.0,
-                                  color: Colors.transparent,
-                                  child: ComponentWidget(
-                                    component: component,
-                                    widgetKey: _componentKeys[component.id] ??
-                                        GlobalKey(),
-                                    position:
-                                        _componentPositions[component.id] ??
-                                            Offset.zero,
-                                    onValueChanged: _handleValueChanged,
-                                    onPortDragStarted: _handlePortDragStarted,
-                                    onPortDragAccepted: _handlePortDragAccepted,
+                          // Components
+                          ..._flowManager.components.map(
+                            (component) {
+                              return Positioned(
+                                left:
+                                    _componentPositions[component.id]?.dx ?? 0,
+                                top: _componentPositions[component.id]?.dy ?? 0,
+                                child: Draggable<String>(
+                                  data: component.id,
+                                  feedback: Material(
+                                    elevation: 5.0,
+                                    color: Colors.transparent,
+                                    child: ComponentWidget(
+                                      component: component,
+                                      widgetKey: _componentKeys[component.id] ??
+                                          GlobalKey(),
+                                      position:
+                                          _componentPositions[component.id] ??
+                                              Offset.zero,
+                                      onValueChanged: _handleValueChanged,
+                                      onPortDragStarted: _handlePortDragStarted,
+                                      onPortDragAccepted:
+                                          _handlePortDragAccepted,
+                                    ),
                                   ),
-                                ),
-                                childWhenDragging: Opacity(
-                                  opacity: 0.3,
-                                  child: ComponentWidget(
-                                    component: component,
-                                    widgetKey: GlobalKey(),
-                                    position:
-                                        _componentPositions[component.id] ??
-                                            Offset.zero,
-                                    onValueChanged: _handleValueChanged,
-                                    onPortDragStarted: _handlePortDragStarted,
-                                    onPortDragAccepted: _handlePortDragAccepted,
+                                  childWhenDragging: Opacity(
+                                    opacity: 0.3,
+                                    child: ComponentWidget(
+                                      component: component,
+                                      widgetKey: GlobalKey(),
+                                      position:
+                                          _componentPositions[component.id] ??
+                                              Offset.zero,
+                                      onValueChanged: _handleValueChanged,
+                                      onPortDragStarted: _handlePortDragStarted,
+                                      onPortDragAccepted:
+                                          _handlePortDragAccepted,
+                                    ),
                                   ),
-                                ),
-                                onDragStarted: () {
-                                  // Store the original position when drag starts
-                                  _dragStartPosition =
-                                      _componentPositions[component.id];
-                                },
-                                onDragEnd: (details) {
-                                  final RenderBox? viewerChildRenderBox =
-                                      _interactiveViewerChildKey.currentContext
-                                          ?.findRenderObject() as RenderBox?;
-
-                                  if (viewerChildRenderBox != null) {
-                                    final Offset localOffset =
-                                        viewerChildRenderBox
-                                            .globalToLocal(details.offset);
-
-                                    if (_dragStartPosition != null &&
-                                        _dragStartPosition != localOffset) {
-                                      setState(() {
-                                        final command = MoveComponentCommand(
-                                          component.id,
-                                          localOffset,
-                                          _dragStartPosition!,
-                                          _componentPositions,
-                                        );
-                                        _commandHistory.execute(command);
-
-                                        _dragStartPosition = null;
-                                        // Update canvas size after moving
-                                        _updateCanvasSize();
-                                      });
-                                    }
-                                  }
-                                },
-                                child: GestureDetector(
-                                  onSecondaryTapDown: (details) {
-                                    _showContextMenu(context,
-                                        details.globalPosition, component);
+                                  onDragStarted: () {
+                                    // Store the original position when drag starts
+                                    _dragStartPosition =
+                                        _componentPositions[component.id];
                                   },
-                                  child: ComponentWidget(
-                                    component: component,
-                                    widgetKey: _componentKeys[component.id] ??
-                                        GlobalKey(),
-                                    position:
-                                        _componentPositions[component.id] ??
-                                            Offset.zero,
-                                    onValueChanged: _handleValueChanged,
-                                    onPortDragStarted: _handlePortDragStarted,
-                                    onPortDragAccepted: _handlePortDragAccepted,
+                                  onDragEnd: (details) {
+                                    final RenderBox? viewerChildRenderBox =
+                                        _interactiveViewerChildKey
+                                            .currentContext
+                                            ?.findRenderObject() as RenderBox?;
+
+                                    if (viewerChildRenderBox != null) {
+                                      final Offset localOffset =
+                                          viewerChildRenderBox
+                                              .globalToLocal(details.offset);
+
+                                      if (_dragStartPosition != null &&
+                                          _dragStartPosition != localOffset) {
+                                        setState(() {
+                                          final command = MoveComponentCommand(
+                                            component.id,
+                                            localOffset,
+                                            _dragStartPosition!,
+                                            _componentPositions,
+                                          );
+                                          _commandHistory.execute(command);
+
+                                          _dragStartPosition = null;
+                                          // Update canvas size after moving
+                                          _updateCanvasSize();
+                                        });
+                                      }
+                                    }
+                                  },
+                                  child: GestureDetector(
+                                    onSecondaryTapDown: (details) {
+                                      _showContextMenu(context,
+                                          details.globalPosition, component);
+                                    },
+                                    child: ComponentWidget(
+                                      component: component,
+                                      widgetKey: _componentKeys[component.id] ??
+                                          GlobalKey(),
+                                      position:
+                                          _componentPositions[component.id] ??
+                                              Offset.zero,
+                                      onValueChanged: _handleValueChanged,
+                                      onPortDragStarted: _handlePortDragStarted,
+                                      onPortDragAccepted:
+                                          _handlePortDragAccepted,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -550,6 +600,116 @@ class _FlowScreenState extends State<FlowScreen> {
         ),
       ),
     );
+  }
+
+  void _showCanvasContextMenu(BuildContext context, Offset position) {
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(position, position),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'add-component',
+          child: Row(
+            children: const [
+              Icon(Icons.add_box, size: 18),
+              SizedBox(width: 8),
+              Text('Add Component'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'paste',
+          child: Row(
+            children: const [
+              Icon(Icons.paste, size: 18),
+              SizedBox(width: 8),
+              Text('Paste'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'select-all',
+          child: Row(
+            children: const [
+              Icon(Icons.select_all, size: 18),
+              SizedBox(width: 8),
+              Text('Select All'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'clear-canvas',
+          child: Row(
+            children: const [
+              Icon(Icons.clear, size: 18, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Clear Canvas', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'canvas-properties',
+          child: Row(
+            children: const [
+              Icon(Icons.settings, size: 18),
+              SizedBox(width: 8),
+              Text('Canvas Properties'),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+
+      switch (value) {
+        case 'add-component':
+          // Open the add component dialog
+          _showAddComponentDialog();
+          break;
+        case 'paste':
+          // Placeholder for paste functionality
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Paste functionality coming soon'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          break;
+        case 'select-all':
+          // Placeholder for select all functionality
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Select all functionality coming soon'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          break;
+        case 'clear-canvas':
+          // Placeholder for clear canvas functionality
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Clear canvas functionality coming soon'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          break;
+        case 'canvas-properties':
+          // Placeholder for canvas properties
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Canvas properties coming soon'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          break;
+      }
+    });
   }
 
   void _showAddComponentDialog() {
