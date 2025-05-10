@@ -15,6 +15,10 @@ enum ComponentType {
   subtract,
   multiply,
   divide,
+  max,
+  min,
+  power,
+  abs,
 
   isGreaterThan,
   isLessThan,
