@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/widgets.dart';
 import 'package:niagara_links/models/command.dart';
 import 'package:niagara_links/models/component.dart';
 import 'package:niagara_links/models/connection.dart';
@@ -17,11 +17,11 @@ class AddComponentCommand extends Command {
   void execute() {
     flowManager.addComponent(component);
     if (state.containsKey('position')) {
-      (state['positions'] as Map<String, dynamic>)[component.id] =
+      (state['positions'] as Map<String, Offset>)[component.id] =
           state['position'];
     }
     if (state.containsKey('key')) {
-      (state['keys'] as Map<String, dynamic>)[component.id] = state['key'];
+      (state['keys'] as Map<String, GlobalKey>)[component.id] = state['key'];
     }
   }
 
@@ -29,10 +29,10 @@ class AddComponentCommand extends Command {
   void undo() {
     flowManager.removeComponent(component.id);
     if (state.containsKey('positions')) {
-      (state['positions'] as Map<String, dynamic>).remove(component.id);
+      (state['positions'] as Map<String, Offset>).remove(component.id);
     }
     if (state.containsKey('keys')) {
-      (state['keys'] as Map<String, dynamic>).remove(component.id);
+      (state['keys'] as Map<String, GlobalKey>).remove(component.id);
     }
   }
 
@@ -45,7 +45,7 @@ class RemoveComponentCommand extends Command {
   final FlowManager flowManager;
   final Component component;
   final Offset position;
-  final dynamic key;
+  final GlobalKey? key;
   final List<Connection> affectedConnections;
 
   RemoveComponentCommand(
@@ -185,7 +185,7 @@ class EditComponentCommand extends Command {
   final ComponentType? newType;
   final ComponentType? oldType;
   final Map<String, Offset> componentPositions;
-  final Map<String, dynamic> componentKeys;
+  final Map<String, GlobalKey> componentKeys;
 
   EditComponentCommand({
     required this.flowManager,

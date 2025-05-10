@@ -1,4 +1,4 @@
-// lib/home/flow_screen.dart
+// Updated lib/home/flow_screen.dart with dynamic canvas functionality
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -32,7 +32,6 @@ class _FlowScreenState extends State<FlowScreen> {
   final CommandHistory _commandHistory = CommandHistory();
 
   final Map<String, Offset> _componentPositions = {};
-
   final Map<String, GlobalKey> _componentKeys = {};
 
   PortDragInfo? _currentDraggedPort;
@@ -43,14 +42,103 @@ class _FlowScreenState extends State<FlowScreen> {
       TransformationController();
   final GlobalKey _interactiveViewerChildKey = GlobalKey();
 
-  final double _canvasWidth = 2500.0;
-  final double _canvasHeight = 2500.0;
+  // Dynamic canvas properties
+  Size _canvasSize = const Size(2000, 2000); // Initial canvas size
+  Offset _canvasOffset = Offset.zero; // Canvas position within the view
+  static const double _canvasPadding = 100.0; // Padding around components
 
   @override
   void initState() {
     super.initState();
     _transformationController.value = Matrix4.identity();
     _initializeComponents();
+  }
+
+  void _updateCanvasSize() {
+    if (_componentPositions.isEmpty) return;
+
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = double.negativeInfinity;
+    double maxY = double.negativeInfinity;
+
+    // Calculate the bounding box of all components
+    for (var entry in _componentPositions.entries) {
+      final position = entry.value;
+      final componentId = entry.key;
+
+      // We need to estimate component size since we're not storing it separately
+      // You might want to adjust these values based on your actual component sizes
+      const estimatedWidth = 180.0; // 160 width + 20 padding
+      const estimatedHeight =
+          120.0; // Estimated height based on your component designs
+
+      minX = min(minX, position.dx);
+      minY = min(minY, position.dy);
+      maxX = max(maxX, position.dx + estimatedWidth);
+      maxY = max(maxY, position.dy + estimatedHeight);
+    }
+
+    bool needsUpdate = false;
+    Size newCanvasSize = _canvasSize;
+    Offset newCanvasOffset = _canvasOffset;
+
+    // Check if we need to expand the canvas to the left or top
+    if (minX < _canvasPadding) {
+      double extraWidth = _canvasPadding - minX;
+      newCanvasSize =
+          Size(_canvasSize.width + extraWidth, newCanvasSize.height);
+      newCanvasOffset =
+          Offset(_canvasOffset.dx - extraWidth, newCanvasOffset.dy);
+
+      // Shift all components to the right
+      for (var id in _componentPositions.keys) {
+        _componentPositions[id] = Offset(
+          _componentPositions[id]!.dx + extraWidth,
+          _componentPositions[id]!.dy,
+        );
+      }
+      needsUpdate = true;
+    }
+
+    if (minY < _canvasPadding) {
+      double extraHeight = _canvasPadding - minY;
+      newCanvasSize =
+          Size(newCanvasSize.width, _canvasSize.height + extraHeight);
+      newCanvasOffset =
+          Offset(newCanvasOffset.dx, _canvasOffset.dy - extraHeight);
+
+      // Shift all components down
+      for (var id in _componentPositions.keys) {
+        _componentPositions[id] = Offset(
+          _componentPositions[id]!.dx,
+          _componentPositions[id]!.dy + extraHeight,
+        );
+      }
+      needsUpdate = true;
+    }
+
+    // Check if we need to expand the canvas to the right or bottom
+    if (maxX > _canvasSize.width - _canvasPadding) {
+      double extraWidth = maxX - (_canvasSize.width - _canvasPadding);
+      newCanvasSize =
+          Size(_canvasSize.width + extraWidth, newCanvasSize.height);
+      needsUpdate = true;
+    }
+
+    if (maxY > _canvasSize.height - _canvasPadding) {
+      double extraHeight = maxY - (_canvasSize.height - _canvasPadding);
+      newCanvasSize =
+          Size(newCanvasSize.width, _canvasSize.height + extraHeight);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      setState(() {
+        _canvasSize = newCanvasSize;
+        _canvasOffset = newCanvasOffset;
+      });
+    }
   }
 
   void _initializeComponents() {
@@ -135,6 +223,9 @@ class _FlowScreenState extends State<FlowScreen> {
 
     // Calculate initial values
     _flowManager.recalculateAll();
+
+    // Update canvas size to fit all components
+    _updateCanvasSize();
 
     // Clear the command history since we're setting up the initial state
     _commandHistory.clear();
@@ -257,6 +348,16 @@ class _FlowScreenState extends State<FlowScreen> {
             appBar: AppBar(
               title: const Text('Visual Flow Editor'),
               actions: [
+                // Show canvas size
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Center(
+                    child: Text(
+                      'Canvas: ${_canvasSize.width.toInt()} × ${_canvasSize.height.toInt()}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ),
                 // Undo button
                 IconButton(
                   icon: const Icon(Icons.undo),
@@ -290,127 +391,135 @@ class _FlowScreenState extends State<FlowScreen> {
             body: ClipRect(
               child: InteractiveViewer(
                 transformationController: _transformationController,
-                boundaryMargin: EdgeInsets.all(10000),
+                boundaryMargin: const EdgeInsets.all(1000),
                 minScale: 0.1,
                 constrained: false,
                 maxScale: 3.0,
-                child: GestureDetector(
-                  onPanUpdate: (details) {
-                    if (_currentDraggedPort != null) {
-                      setState(() {
-                        final RenderBox? viewerChildRenderBox =
-                            _interactiveViewerChildKey.currentContext
-                                ?.findRenderObject() as RenderBox?;
-                        if (viewerChildRenderBox != null) {
-                          _tempLineEndPoint = viewerChildRenderBox
-                              .globalToLocal(details.globalPosition);
-                        }
-                      });
-                    }
-                  },
-                  onPanEnd: (details) {
-                    setState(() {
-                      _tempLineEndPoint = null;
-                      _currentDraggedPort = null;
-                    });
-                  },
-                  child: CustomPaint(
-                    key: _interactiveViewerChildKey,
-                    foregroundPainter: ConnectionPainter(
-                      flowManager: _flowManager,
-                      componentPositions: _componentPositions,
-                      componentKeys: _componentKeys,
-                      tempLineStartInfo: _currentDraggedPort,
-                      tempLineEndPoint: _tempLineEndPoint,
-                    ),
-                    child: SizedBox(
-                      width: 100000,
-                      height: 100000,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: _flowManager.components.map((component) {
-                          return Positioned(
-                            left: _componentPositions[component.id]?.dx ?? 0,
-                            top: _componentPositions[component.id]?.dy ?? 0,
-                            child: Draggable<String>(
-                              data: component.id,
-                              feedback: Material(
-                                elevation: 5.0,
-                                color: Colors.transparent,
-                                child: ComponentWidget(
-                                  component: component,
-                                  widgetKey: _componentKeys[component.id] ??
-                                      GlobalKey(),
-                                  position: _componentPositions[component.id] ??
-                                      Offset.zero,
-                                  onValueChanged: _handleValueChanged,
-                                  onPortDragStarted: _handlePortDragStarted,
-                                  onPortDragAccepted: _handlePortDragAccepted,
-                                ),
-                              ),
-                              childWhenDragging: Opacity(
-                                opacity: 0.3,
-                                child: ComponentWidget(
-                                  component: component,
-                                  widgetKey: GlobalKey(),
-                                  position: _componentPositions[component.id] ??
-                                      Offset.zero,
-                                  onValueChanged: _handleValueChanged,
-                                  onPortDragStarted: _handlePortDragStarted,
-                                  onPortDragAccepted: _handlePortDragAccepted,
-                                ),
-                              ),
-                              onDragStarted: () {
-                                // Store the original position when drag starts
-                                _dragStartPosition =
-                                    _componentPositions[component.id];
-                              },
-                              onDragEnd: (details) {
-                                final RenderBox? viewerChildRenderBox =
-                                    _interactiveViewerChildKey.currentContext
-                                        ?.findRenderObject() as RenderBox?;
-
-                                if (viewerChildRenderBox != null) {
-                                  final Offset localOffset =
-                                      viewerChildRenderBox
-                                          .globalToLocal(details.offset);
-
-                                  if (_dragStartPosition != null &&
-                                      _dragStartPosition != localOffset) {
-                                    setState(() {
-                                      final command = MoveComponentCommand(
-                                        component.id,
-                                        localOffset,
-                                        _dragStartPosition!,
-                                        _componentPositions,
-                                      );
-                                      _commandHistory.execute(command);
-
-                                      _dragStartPosition = null;
-                                    });
-                                  }
-                                }
-                              },
-                              child: GestureDetector(
-                                onSecondaryTapDown: (details) {
-                                  _showContextMenu(context,
-                                      details.globalPosition, component);
-                                },
-                                child: ComponentWidget(
-                                  component: component,
-                                  widgetKey: _componentKeys[component.id] ??
-                                      GlobalKey(),
-                                  position: _componentPositions[component.id] ??
-                                      Offset.zero,
-                                  onValueChanged: _handleValueChanged,
-                                  onPortDragStarted: _handlePortDragStarted,
-                                  onPortDragAccepted: _handlePortDragAccepted,
-                                ),
+                panEnabled: true,
+                scaleEnabled: true,
+                child: CustomPaint(
+                  key: _interactiveViewerChildKey,
+                  foregroundPainter: ConnectionPainter(
+                    flowManager: _flowManager,
+                    componentPositions: _componentPositions,
+                    componentKeys: _componentKeys,
+                    tempLineStartInfo: _currentDraggedPort,
+                    tempLineEndPoint: _tempLineEndPoint,
+                  ),
+                  child: Container(
+                    width: _canvasSize.width,
+                    height: _canvasSize.height,
+                    color: Colors.grey[50],
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Grid background
+                        CustomPaint(
+                          painter: GridPainter(),
+                          size: _canvasSize,
+                        ),
+                        // Empty canvas message
+                        if (_flowManager.components.isEmpty)
+                          const Center(
+                            child: Text(
+                              'Add components to the canvas',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 18,
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
+                          ),
+                        // Components
+                        ..._flowManager.components.map(
+                          (component) {
+                            return Positioned(
+                              left: _componentPositions[component.id]?.dx ?? 0,
+                              top: _componentPositions[component.id]?.dy ?? 0,
+                              child: Draggable<String>(
+                                data: component.id,
+                                feedback: Material(
+                                  elevation: 5.0,
+                                  color: Colors.transparent,
+                                  child: ComponentWidget(
+                                    component: component,
+                                    widgetKey: _componentKeys[component.id] ??
+                                        GlobalKey(),
+                                    position:
+                                        _componentPositions[component.id] ??
+                                            Offset.zero,
+                                    onValueChanged: _handleValueChanged,
+                                    onPortDragStarted: _handlePortDragStarted,
+                                    onPortDragAccepted: _handlePortDragAccepted,
+                                  ),
+                                ),
+                                childWhenDragging: Opacity(
+                                  opacity: 0.3,
+                                  child: ComponentWidget(
+                                    component: component,
+                                    widgetKey: GlobalKey(),
+                                    position:
+                                        _componentPositions[component.id] ??
+                                            Offset.zero,
+                                    onValueChanged: _handleValueChanged,
+                                    onPortDragStarted: _handlePortDragStarted,
+                                    onPortDragAccepted: _handlePortDragAccepted,
+                                  ),
+                                ),
+                                onDragStarted: () {
+                                  // Store the original position when drag starts
+                                  _dragStartPosition =
+                                      _componentPositions[component.id];
+                                },
+                                onDragEnd: (details) {
+                                  final RenderBox? viewerChildRenderBox =
+                                      _interactiveViewerChildKey.currentContext
+                                          ?.findRenderObject() as RenderBox?;
+
+                                  if (viewerChildRenderBox != null) {
+                                    final Offset localOffset =
+                                        viewerChildRenderBox
+                                            .globalToLocal(details.offset);
+
+                                    if (_dragStartPosition != null &&
+                                        _dragStartPosition != localOffset) {
+                                      setState(() {
+                                        final command = MoveComponentCommand(
+                                          component.id,
+                                          localOffset,
+                                          _dragStartPosition!,
+                                          _componentPositions,
+                                        );
+                                        _commandHistory.execute(command);
+
+                                        _dragStartPosition = null;
+                                        // Update canvas size after moving
+                                        _updateCanvasSize();
+                                      });
+                                    }
+                                  }
+                                },
+                                child: GestureDetector(
+                                  onSecondaryTapDown: (details) {
+                                    _showContextMenu(context,
+                                        details.globalPosition, component);
+                                  },
+                                  child: ComponentWidget(
+                                    component: component,
+                                    widgetKey: _componentKeys[component.id] ??
+                                        GlobalKey(),
+                                    position:
+                                        _componentPositions[component.id] ??
+                                            Offset.zero,
+                                    onValueChanged: _handleValueChanged,
+                                    onPortDragStarted: _handlePortDragStarted,
+                                    onPortDragAccepted: _handlePortDragAccepted,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -535,12 +644,10 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _addNewComponent(ComponentType type) {
-    // Generate a unique name based on type
     String baseName = getNameForComponentType(type);
     int counter = 1;
     String newName = '$baseName $counter';
 
-    // Make sure the name is unique
     while (_flowManager.components.any((comp) => comp.id == newName)) {
       counter++;
       newName = '$baseName $counter';
@@ -551,24 +658,31 @@ class _FlowScreenState extends State<FlowScreen> {
       type: type,
     );
 
-    // Find a good position - center of screen plus some random offset
     final RenderBox? viewerChildRenderBox =
         _interactiveViewerChildKey.currentContext?.findRenderObject()
             as RenderBox?;
 
-    Offset screenCenter = Offset(_canvasWidth / 2, _canvasHeight / 2);
+    Offset newPosition = Offset(_canvasSize.width / 2, _canvasSize.height / 2);
+
     if (viewerChildRenderBox != null) {
-      // Adjust for current transformation
-      screenCenter = viewerChildRenderBox.localToGlobal(Offset.zero);
+      final viewportSize = viewerChildRenderBox.size;
+      final viewportCenter =
+          Offset(viewportSize.width / 2, viewportSize.height / 2);
+
+      final matrix = _transformationController.value;
+      final inverseMatrix = Matrix4.inverted(matrix);
+      final transformedCenter =
+          MatrixUtils.transformPoint(inverseMatrix, viewportCenter);
+
+      final random = Random();
+      final randomOffset = Offset(
+        (random.nextDouble() * 200) - 100,
+        (random.nextDouble() * 200) - 100,
+      );
+
+      newPosition = transformedCenter + randomOffset;
     }
 
-    final random = Random();
-    final randomOffset = Offset(
-      (random.nextDouble() * 200) - 100,
-      (random.nextDouble() * 200) - 100,
-    );
-
-    final newPosition = screenCenter + randomOffset;
     final newKey = GlobalKey();
 
     Map<String, dynamic> state = {
@@ -582,9 +696,10 @@ class _FlowScreenState extends State<FlowScreen> {
       final command = AddComponentCommand(_flowManager, newComponent, state);
       _commandHistory.execute(command);
 
-      // Set position and key directly since they're not handled in the command execution
       _componentPositions[newComponent.id] = newPosition;
       _componentKeys[newComponent.id] = newKey;
+
+      _updateCanvasSize();
     });
   }
 
@@ -649,10 +764,8 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _handleCopyComponent(Component component) {
-    // Create a copy with the same type
     String newName = '${component.id} (Copy)';
 
-    // Make sure the name is unique
     int counter = 1;
     while (_flowManager.components.any((comp) => comp.id == newName)) {
       counter++;
@@ -664,7 +777,6 @@ class _FlowScreenState extends State<FlowScreen> {
       type: component.type,
     );
 
-    // Copy values from original ports
     for (int i = 0;
         i < component.ports.length && i < newComponent.ports.length;
         i++) {
@@ -673,7 +785,6 @@ class _FlowScreenState extends State<FlowScreen> {
       }
     }
 
-    // Position the copy slightly offset from the original
     final newPosition = Offset(
       (_componentPositions[component.id]?.dx ?? 0) + 20,
       (_componentPositions[component.id]?.dy ?? 0) + 20,
@@ -692,9 +803,10 @@ class _FlowScreenState extends State<FlowScreen> {
       final command = AddComponentCommand(_flowManager, newComponent, state);
       _commandHistory.execute(command);
 
-      // Set position and key directly since they're not handled in the command
       _componentPositions[newComponent.id] = newPosition;
       _componentKeys[newComponent.id] = newKey;
+
+      _updateCanvasSize();
     });
   }
 
@@ -748,12 +860,10 @@ class _FlowScreenState extends State<FlowScreen> {
                 final oldId = component.id;
                 String newId = nameController.text.trim();
 
-                // Check if the name is unique or empty
                 if (newId.isEmpty) {
                   newId = oldId;
                 } else if (_flowManager.components
                     .any((comp) => comp.id == newId && comp.id != oldId)) {
-                  // Name already exists, add a suffix
                   int counter = 1;
                   String baseName = newId;
                   while (_flowManager.components
@@ -763,7 +873,6 @@ class _FlowScreenState extends State<FlowScreen> {
                   }
                 }
 
-                // Create a command if anything changed
                 if (oldId != newId || component.type != selectedType) {
                   this.setState(() {
                     final command = EditComponentCommand(
@@ -788,9 +897,6 @@ class _FlowScreenState extends State<FlowScreen> {
     );
   }
 
-  // Get a list of component types that are compatible with the current type
-  // (i.e., they have similar port structures)
-
   void _handleDeleteComponent(Component component) {
     final affectedConnections = _flowManager.connections
         .where((connection) =>
@@ -810,6 +916,28 @@ class _FlowScreenState extends State<FlowScreen> {
         affectedConnections,
       );
       _commandHistory.execute(command);
+
+      _updateCanvasSize();
     });
   }
+}
+
+class GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.grey[300]!
+      ..strokeWidth = 0.5;
+
+    for (double i = 0; i < size.width; i += 20) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+    }
+
+    for (double i = 0; i < size.height; i += 20) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
