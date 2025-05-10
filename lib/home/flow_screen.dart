@@ -607,6 +607,10 @@ class _FlowScreenState extends State<FlowScreen> {
                   ComponentType.subtract,
                   ComponentType.multiply,
                   ComponentType.divide,
+                  ComponentType.max,
+                  ComponentType.min,
+                  ComponentType.power,
+                  ComponentType.abs,
                 ]),
                 _buildComponentCategorySection('Comparisons', [
                   ComponentType.isGreaterThan,
