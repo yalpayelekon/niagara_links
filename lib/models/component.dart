@@ -1,4 +1,3 @@
-import 'dart:math' show pow;
 import 'package:niagara_links/models/connection_endpoint.dart';
 import 'package:niagara_links/models/enums.dart';
 import 'package:niagara_links/models/port.dart';
@@ -44,30 +43,12 @@ class Component {
       case ComponentType.subtract:
       case ComponentType.multiply:
       case ComponentType.divide:
-      case ComponentType.max:
-      case ComponentType.min:
         ports.add(Port.withDefaultValue(
             isInput: true, index: 0, name: "Input A", type: PortType.number));
         ports.add(Port.withDefaultValue(
             isInput: true, index: 1, name: "Input B", type: PortType.number));
         ports.add(Port.withDefaultValue(
             isInput: false, index: 2, name: "Output", type: PortType.number));
-        break;
-
-      case ComponentType.power:
-        ports.add(Port.withDefaultValue(
-            isInput: true, index: 0, name: "Base", type: PortType.number));
-        ports.add(Port.withDefaultValue(
-            isInput: true, index: 1, name: "Exponent", type: PortType.number));
-        ports.add(Port.withDefaultValue(
-            isInput: false, index: 2, name: "Output", type: PortType.number));
-        break;
-
-      case ComponentType.abs: // Add this
-        ports.add(Port.withDefaultValue(
-            isInput: true, index: 0, name: "Input", type: PortType.number));
-        ports.add(Port.withDefaultValue(
-            isInput: false, index: 1, name: "Output", type: PortType.number));
         break;
 
       // Comparison components
@@ -161,28 +142,6 @@ class Component {
         ports[2].value = inputB != 0 ? inputA / inputB : double.infinity;
         break;
 
-      case ComponentType.max:
-        final num inputA = ports[0].value as num;
-        final num inputB = ports[1].value as num;
-        ports[2].value = inputA > inputB ? inputA : inputB;
-        break;
-
-      case ComponentType.min:
-        final num inputA = ports[0].value as num;
-        final num inputB = ports[1].value as num;
-        ports[2].value = inputA < inputB ? inputA : inputB;
-        break;
-
-      case ComponentType.power:
-        final num base = ports[0].value as num;
-        final num exponent = ports[1].value as num;
-        ports[2].value = pow(base, exponent);
-        break;
-
-      case ComponentType.abs:
-        final num input = ports[0].value as num;
-        ports[2].value = input.abs();
-        break;
       // Comparison Components
       case ComponentType.isGreaterThan:
         final num inputA = ports[0].value as num;
