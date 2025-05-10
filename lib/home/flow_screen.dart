@@ -1,4 +1,3 @@
-// Updated lib/home/flow_screen.dart with dynamic canvas functionality
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -46,6 +45,8 @@ class _FlowScreenState extends State<FlowScreen> {
   Size _canvasSize = const Size(2000, 2000); // Initial canvas size
   Offset _canvasOffset = Offset.zero; // Canvas position within the view
   static const double _canvasPadding = 100.0; // Padding around components
+
+  Component? _clipboardComponent;
 
   @override
   void initState() {
@@ -634,11 +635,16 @@ class _FlowScreenState extends State<FlowScreen> {
         ),
         PopupMenuItem(
           value: 'paste',
+          enabled: _clipboardComponent != null,
           child: Row(
-            children: const [
-              Icon(Icons.paste, size: 18),
-              SizedBox(width: 8),
-              Text('Paste'),
+            children: [
+              Icon(Icons.paste,
+                  size: 18,
+                  color: _clipboardComponent != null ? null : Colors.grey),
+              const SizedBox(width: 8),
+              Text('Paste',
+                  style: TextStyle(
+                      color: _clipboardComponent != null ? null : Colors.grey)),
             ],
           ),
         ),
@@ -671,13 +677,7 @@ class _FlowScreenState extends State<FlowScreen> {
           _showAddComponentDialogAtPosition(canvasPosition);
           break;
         case 'paste':
-          // Placeholder for paste functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Paste functionality coming soon'),
-              duration: Duration(seconds: 1),
-            ),
-          );
+          _handlePasteComponent(canvasPosition);
           break;
         case 'select-all':
           // Placeholder for select all functionality
@@ -930,53 +930,6 @@ class _FlowScreenState extends State<FlowScreen> {
     });
   }
 
-  void _handleCopyComponent(Component component) {
-    String newName = '${component.id} (Copy)';
-
-    int counter = 1;
-    while (_flowManager.components.any((comp) => comp.id == newName)) {
-      counter++;
-      newName = '${component.id} (Copy $counter)';
-    }
-
-    final newComponent = Component(
-      id: newName,
-      type: component.type,
-    );
-
-    for (int i = 0;
-        i < component.ports.length && i < newComponent.ports.length;
-        i++) {
-      if (component.ports[i].isInput && component.inputConnections[i] == null) {
-        newComponent.ports[i].value = component.ports[i].value;
-      }
-    }
-
-    final newPosition = Offset(
-      (_componentPositions[component.id]?.dx ?? 0) + 20,
-      (_componentPositions[component.id]?.dy ?? 0) + 20,
-    );
-
-    final newKey = GlobalKey();
-
-    Map<String, dynamic> state = {
-      'position': newPosition,
-      'key': newKey,
-      'positions': _componentPositions,
-      'keys': _componentKeys,
-    };
-
-    setState(() {
-      final command = AddComponentCommand(_flowManager, newComponent, state);
-      _commandHistory.execute(command);
-
-      _componentPositions[newComponent.id] = newPosition;
-      _componentKeys[newComponent.id] = newKey;
-
-      _updateCanvasSize();
-    });
-  }
-
   void _handleEditComponent(BuildContext context, Component component) {
     TextEditingController nameController =
         TextEditingController(text: component.id);
@@ -1083,6 +1036,64 @@ class _FlowScreenState extends State<FlowScreen> {
         affectedConnections,
       );
       _commandHistory.execute(command);
+
+      _updateCanvasSize();
+    });
+  }
+
+  void _handleCopyComponent(Component component) {
+    // Copy component to clipboard
+    _clipboardComponent = component;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied ${component.id}'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _handlePasteComponent(Offset position) {
+    if (_clipboardComponent == null) return;
+
+    String newName = '${_clipboardComponent!.id} (Copy)';
+
+    int counter = 1;
+    while (_flowManager.components.any((comp) => comp.id == newName)) {
+      counter++;
+      newName = '${_clipboardComponent!.id} (Copy $counter)';
+    }
+
+    final newComponent = Component(
+      id: newName,
+      type: _clipboardComponent!.type,
+    );
+
+    // Copy values from ports that don't have input connections
+    for (int i = 0;
+        i < _clipboardComponent!.ports.length && i < newComponent.ports.length;
+        i++) {
+      if (_clipboardComponent!.ports[i].isInput &&
+          _clipboardComponent!.inputConnections[i] == null) {
+        newComponent.ports[i].value = _clipboardComponent!.ports[i].value;
+      }
+    }
+
+    final newKey = GlobalKey();
+
+    Map<String, dynamic> state = {
+      'position': position,
+      'key': newKey,
+      'positions': _componentPositions,
+      'keys': _componentKeys,
+    };
+
+    setState(() {
+      final command = AddComponentCommand(_flowManager, newComponent, state);
+      _commandHistory.execute(command);
+
+      _componentPositions[newComponent.id] = position;
+      _componentKeys[newComponent.id] = newKey;
 
       _updateCanvasSize();
     });
