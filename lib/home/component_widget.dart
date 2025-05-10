@@ -135,7 +135,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
     final label = port.name;
 
     return DragTarget<PortDragInfo>(
-      onAccept: (draggedPortInfo) {
+      onAcceptWithDetails: (DragTargetDetails<PortDragInfo> details) {
         widget.onPortDragAccepted(PortDragInfo(widget.component.id, index));
       },
       builder: (context, candidateData, rejectedData) {
