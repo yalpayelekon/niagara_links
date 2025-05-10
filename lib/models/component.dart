@@ -1,7 +1,7 @@
 import 'dart:math' show pow;
-import 'package:niagara_links/models/connection_endpoint.dart';
-import 'package:niagara_links/models/enums.dart';
-import 'package:niagara_links/models/port.dart';
+import 'enums.dart';
+import 'port.dart';
+import 'connection.dart';
 
 class Component {
   String id;

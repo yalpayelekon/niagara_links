@@ -1,8 +1,7 @@
-import 'package:niagara_links/models/component.dart';
-import 'package:niagara_links/models/connection.dart';
-import 'package:niagara_links/models/connection_endpoint.dart';
-import 'package:niagara_links/models/enums.dart';
-import 'package:niagara_links/models/port.dart';
+import '../models/component.dart';
+import '../models/connection.dart';
+import '../models/enums.dart';
+import '../models/port.dart';
 
 class FlowManager {
   List<Component> components = [];

@@ -1,19 +1,17 @@
+// Updated lib/home/flow_screen.dart with dynamic canvas functionality
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import '../home/grid_painter.dart';
-import '../models/command_history.dart';
-import '../models/component.dart';
+import 'package:niagara_links/home/grid_painter.dart';
+import 'package:niagara_links/models/command_history.dart';
+import 'package:niagara_links/models/component.dart';
 import '../models/enums.dart';
-import 'operations.dart';
-import 'dialogs.dart';
 import 'manager.dart';
 import 'component_widget.dart';
 import 'connection_painter.dart';
 import 'command.dart';
 import 'utils.dart';
-import 'context_menus.dart';
 
 class UndoIntent extends Intent {
   const UndoIntent();
@@ -36,7 +34,7 @@ class _FlowScreenState extends State<FlowScreen> {
 
   final Map<String, Offset> _componentPositions = {};
   final Map<String, GlobalKey> _componentKeys = {};
-  late ComponentOperations _operations;
+
   PortDragInfo? _currentDraggedPort;
   Offset? _tempLineEndPoint;
   Offset? _dragStartPosition; // Track starting position for move commands
@@ -53,16 +51,6 @@ class _FlowScreenState extends State<FlowScreen> {
   void initState() {
     super.initState();
     _transformationController.value = Matrix4.identity();
-
-    _operations = ComponentOperations(
-      flowManager: _flowManager,
-      commandHistory: _commandHistory,
-      componentPositions: _componentPositions,
-      componentKeys: _componentKeys,
-      setState: setState,
-      updateCanvasSize: _updateCanvasSize,
-    );
-
     _initializeComponents();
   }
 
@@ -243,17 +231,27 @@ class _FlowScreenState extends State<FlowScreen> {
     _commandHistory.clear();
   }
 
-  void _showAddComponentDialogAtPosition(Offset position) {
-    ComponentDialogs.showAddComponentDialog(
-      context,
-      _operations.addNewComponent,
-      position: position,
-    );
-  }
-
   void _handleValueChanged(
       String componentId, int portIndex, dynamic newValue) {
-    _operations.handleValueChanged(componentId, portIndex, newValue);
+    // Get the current value before changing it
+    Component? component = _flowManager.findComponentById(componentId);
+    if (component != null && portIndex < component.ports.length) {
+      dynamic oldValue = component.ports[portIndex].value;
+
+      // Only create a command if the value actually changed
+      if (oldValue != newValue) {
+        setState(() {
+          final command = UpdatePortValueCommand(
+            _flowManager,
+            componentId,
+            portIndex,
+            newValue,
+            oldValue,
+          );
+          _commandHistory.execute(command);
+        });
+      }
+    }
   }
 
   void _handlePortDragStarted(PortDragInfo portInfo) {
@@ -614,21 +612,195 @@ class _FlowScreenState extends State<FlowScreen> {
       canvasPosition = MatrixUtils.transformPoint(inverseMatrix, localPosition);
     }
 
-    ContextMenus.showCanvasContextMenu(
-      context,
-      globalPosition,
-      canvasPosition,
-      _showAddComponentDialogAtPosition,
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(globalPosition, globalPosition),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'add-component',
+          child: Row(
+            children: const [
+              Icon(Icons.add_box, size: 18),
+              SizedBox(width: 8),
+              Text('Add Component'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'paste',
+          child: Row(
+            children: const [
+              Icon(Icons.paste, size: 18),
+              SizedBox(width: 8),
+              Text('Paste'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'select-all',
+          child: Row(
+            children: const [
+              Icon(Icons.select_all, size: 18),
+              SizedBox(width: 8),
+              Text('Select All'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'clear-canvas',
+          child: Row(
+            children: const [
+              Icon(Icons.clear, size: 18, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Clear Canvas', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+
+      switch (value) {
+        case 'add-component':
+          _showAddComponentDialogAtPosition(canvasPosition);
+          break;
+        case 'paste':
+          // Placeholder for paste functionality
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Paste functionality coming soon'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          break;
+        case 'select-all':
+          // Placeholder for select all functionality
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Select all functionality coming soon'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          break;
+        case 'clear-canvas':
+          // Placeholder for clear canvas functionality
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Clear canvas functionality coming soon'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          break;
+      }
+    });
+  }
+
+  void _showAddComponentDialogAtPosition(Offset position) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Add Component'),
+          content: SizedBox(
+            width: 300,
+            height: 400,
+            child: ListView(
+              children: [
+                _buildComponentCategorySection(
+                    'Logic Gates',
+                    [
+                      ComponentType.andGate,
+                      ComponentType.orGate,
+                      ComponentType.xorGate,
+                      ComponentType.notGate,
+                    ],
+                    position),
+                _buildComponentCategorySection(
+                    'Math Operations',
+                    [
+                      ComponentType.add,
+                      ComponentType.subtract,
+                      ComponentType.multiply,
+                      ComponentType.divide,
+                      ComponentType.max,
+                      ComponentType.min,
+                      ComponentType.power,
+                      ComponentType.abs,
+                    ],
+                    position),
+                _buildComponentCategorySection(
+                    'Comparisons',
+                    [
+                      ComponentType.isGreaterThan,
+                      ComponentType.isLessThan,
+                      ComponentType.isEqual,
+                    ],
+                    position),
+                _buildComponentCategorySection(
+                    'Input Components',
+                    [
+                      ComponentType.booleanInput,
+                      ComponentType.numberInput,
+                      ComponentType.stringInput,
+                    ],
+                    position),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  void _showContextMenu(
-      BuildContext context, Offset position, Component component) {
-    ContextMenus.showComponentContextMenu(
-      context,
-      position,
-      component,
-      _operations,
+  Widget _buildComponentCategorySection(
+      String title, List<ComponentType> types, Offset position) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 12.0, bottom: 6.0),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        const Divider(),
+        Wrap(
+          spacing: 8.0,
+          runSpacing: 8.0,
+          children: types.map((type) {
+            return InkWell(
+              onTap: () {
+                _addNewComponent(type, clickPosition: position);
+                Navigator.pop(context);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(4.0),
+                ),
+                child: Column(
+                  children: [
+                    Icon(getIconForComponentType(type)),
+                    const SizedBox(height: 4.0),
+                    Text(getNameForComponentType(type)),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
@@ -693,6 +865,224 @@ class _FlowScreenState extends State<FlowScreen> {
 
       _componentPositions[newComponent.id] = newPosition;
       _componentKeys[newComponent.id] = newKey;
+
+      _updateCanvasSize();
+    });
+  }
+
+  void _showContextMenu(
+      BuildContext context, Offset position, Component component) {
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(position, position),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'copy',
+          child: Row(
+            children: const [
+              Icon(Icons.copy, size: 18),
+              SizedBox(width: 8),
+              Text('Copy'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: const [
+              Icon(Icons.edit, size: 18),
+              SizedBox(width: 8),
+              Text('Edit'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: const [
+              Icon(Icons.delete, size: 18),
+              SizedBox(width: 8),
+              Text('Delete'),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+
+      switch (value) {
+        case 'copy':
+          _handleCopyComponent(component);
+          break;
+        case 'edit':
+          _handleEditComponent(context, component);
+          break;
+        case 'delete':
+          _handleDeleteComponent(component);
+          break;
+      }
+    });
+  }
+
+  void _handleCopyComponent(Component component) {
+    String newName = '${component.id} (Copy)';
+
+    int counter = 1;
+    while (_flowManager.components.any((comp) => comp.id == newName)) {
+      counter++;
+      newName = '${component.id} (Copy $counter)';
+    }
+
+    final newComponent = Component(
+      id: newName,
+      type: component.type,
+    );
+
+    for (int i = 0;
+        i < component.ports.length && i < newComponent.ports.length;
+        i++) {
+      if (component.ports[i].isInput && component.inputConnections[i] == null) {
+        newComponent.ports[i].value = component.ports[i].value;
+      }
+    }
+
+    final newPosition = Offset(
+      (_componentPositions[component.id]?.dx ?? 0) + 20,
+      (_componentPositions[component.id]?.dy ?? 0) + 20,
+    );
+
+    final newKey = GlobalKey();
+
+    Map<String, dynamic> state = {
+      'position': newPosition,
+      'key': newKey,
+      'positions': _componentPositions,
+      'keys': _componentKeys,
+    };
+
+    setState(() {
+      final command = AddComponentCommand(_flowManager, newComponent, state);
+      _commandHistory.execute(command);
+
+      _componentPositions[newComponent.id] = newPosition;
+      _componentKeys[newComponent.id] = newKey;
+
+      _updateCanvasSize();
+    });
+  }
+
+  void _handleEditComponent(BuildContext context, Component component) {
+    TextEditingController nameController =
+        TextEditingController(text: component.id);
+    ComponentType selectedType = component.type;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(builder: (context, setState) {
+        return AlertDialog(
+          title: const Text('Edit Component'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Component Name'),
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<ComponentType>(
+                value: selectedType,
+                decoration: const InputDecoration(
+                  labelText: 'Component Type',
+                ),
+                items: getCompatibleTypes(component.type).map((type) {
+                  return DropdownMenuItem<ComponentType>(
+                    value: type,
+                    child: Text(getNameForComponentType(type)),
+                  );
+                }).toList(),
+                onChanged: (ComponentType? value) {
+                  if (value != null) {
+                    setState(() {
+                      selectedType = value;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final oldId = component.id;
+                String newId = nameController.text.trim();
+
+                if (newId.isEmpty) {
+                  newId = oldId;
+                } else if (_flowManager.components
+                    .any((comp) => comp.id == newId && comp.id != oldId)) {
+                  int counter = 1;
+                  String baseName = newId;
+                  while (_flowManager.components
+                      .any((comp) => comp.id == newId && comp.id != oldId)) {
+                    counter++;
+                    newId = '$baseName $counter';
+                  }
+                }
+
+                if (oldId != newId || component.type != selectedType) {
+                  this.setState(() {
+                    final command = EditComponentCommand(
+                      flowManager: _flowManager,
+                      oldId: oldId,
+                      newId: newId,
+                      oldType: component.type,
+                      newType: selectedType,
+                      componentPositions: _componentPositions,
+                      componentKeys: _componentKeys,
+                    );
+                    _commandHistory.execute(command);
+                  });
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  void _handleDeleteComponent(Component component) {
+    final affectedConnections = _flowManager.connections
+        .where((connection) =>
+            connection.fromComponentId == component.id ||
+            connection.toComponentId == component.id)
+        .toList();
+
+    setState(() {
+      final oldPosition = _componentPositions[component.id] ?? Offset.zero;
+      final oldKey = _componentKeys[component.id];
+
+      final command = RemoveComponentCommand(
+        _flowManager,
+        component,
+        oldPosition,
+        oldKey,
+        affectedConnections,
+      );
+      _commandHistory.execute(command);
 
       _updateCanvasSize();
     });

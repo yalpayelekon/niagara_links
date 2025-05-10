@@ -1,4 +1,4 @@
-import 'package:niagara_links/models/command.dart';
+import 'command.dart';
 
 class CommandHistory {
   final List<Command> _undoStack = [];

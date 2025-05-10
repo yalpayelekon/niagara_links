@@ -1,4 +1,4 @@
-import 'package:niagara_links/models/enums.dart';
+import 'enums.dart';
 
 class Port {
   final bool isInput;

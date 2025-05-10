@@ -19,3 +19,13 @@ class Connection {
     return toComponentId == componentId && toPortIndex == portIndex;
   }
 }
+
+class ConnectionEndpoint {
+  String componentId;
+  int portIndex;
+
+  ConnectionEndpoint({
+    required this.componentId,
+    required this.portIndex,
+  });
+}
