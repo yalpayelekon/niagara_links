@@ -588,12 +588,6 @@ class _FlowScreenState extends State<FlowScreen> {
                   tooltip: 'Reset View',
                   child: const Icon(Icons.center_focus_strong),
                 ),
-                const SizedBox(height: 16),
-                FloatingActionButton(
-                  onPressed: _showAddComponentDialog,
-                  tooltip: 'Add Component',
-                  child: const Icon(Icons.add),
-                ),
               ],
             ),
           ),
@@ -602,14 +596,29 @@ class _FlowScreenState extends State<FlowScreen> {
     );
   }
 
-  void _showCanvasContextMenu(BuildContext context, Offset position) {
+  void _showCanvasContextMenu(BuildContext context, Offset globalPosition) {
+    Offset canvasPosition = Offset.zero;
+
+    final RenderBox? viewerChildRenderBox =
+        _interactiveViewerChildKey.currentContext?.findRenderObject()
+            as RenderBox?;
+
+    if (viewerChildRenderBox != null) {
+      final Offset localPosition =
+          viewerChildRenderBox.globalToLocal(globalPosition);
+
+      final matrix = _transformationController.value;
+      final inverseMatrix = Matrix4.inverted(matrix);
+      canvasPosition = MatrixUtils.transformPoint(inverseMatrix, localPosition);
+    }
+
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
 
     showMenu(
       context: context,
       position: RelativeRect.fromRect(
-        Rect.fromPoints(position, position),
+        Rect.fromPoints(globalPosition, globalPosition),
         Offset.zero & overlay.size,
       ),
       items: [
@@ -669,8 +678,7 @@ class _FlowScreenState extends State<FlowScreen> {
 
       switch (value) {
         case 'add-component':
-          // Open the add component dialog
-          _showAddComponentDialog();
+          _showAddComponentDialogAtPosition(canvasPosition);
           break;
         case 'paste':
           // Placeholder for paste functionality
@@ -712,7 +720,7 @@ class _FlowScreenState extends State<FlowScreen> {
     });
   }
 
-  void _showAddComponentDialog() {
+  void _showAddComponentDialogAtPosition(Offset position) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -723,32 +731,44 @@ class _FlowScreenState extends State<FlowScreen> {
             height: 400,
             child: ListView(
               children: [
-                _buildComponentCategorySection('Logic Gates', [
-                  ComponentType.andGate,
-                  ComponentType.orGate,
-                  ComponentType.xorGate,
-                  ComponentType.notGate,
-                ]),
-                _buildComponentCategorySection('Math Operations', [
-                  ComponentType.add,
-                  ComponentType.subtract,
-                  ComponentType.multiply,
-                  ComponentType.divide,
-                  ComponentType.max,
-                  ComponentType.min,
-                  ComponentType.power,
-                  ComponentType.abs,
-                ]),
-                _buildComponentCategorySection('Comparisons', [
-                  ComponentType.isGreaterThan,
-                  ComponentType.isLessThan,
-                  ComponentType.isEqual,
-                ]),
-                _buildComponentCategorySection('Input Components', [
-                  ComponentType.booleanInput,
-                  ComponentType.numberInput,
-                  ComponentType.stringInput,
-                ]),
+                _buildComponentCategorySection(
+                    'Logic Gates',
+                    [
+                      ComponentType.andGate,
+                      ComponentType.orGate,
+                      ComponentType.xorGate,
+                      ComponentType.notGate,
+                    ],
+                    position),
+                _buildComponentCategorySection(
+                    'Math Operations',
+                    [
+                      ComponentType.add,
+                      ComponentType.subtract,
+                      ComponentType.multiply,
+                      ComponentType.divide,
+                      ComponentType.max,
+                      ComponentType.min,
+                      ComponentType.power,
+                      ComponentType.abs,
+                    ],
+                    position),
+                _buildComponentCategorySection(
+                    'Comparisons',
+                    [
+                      ComponentType.isGreaterThan,
+                      ComponentType.isLessThan,
+                      ComponentType.isEqual,
+                    ],
+                    position),
+                _buildComponentCategorySection(
+                    'Input Components',
+                    [
+                      ComponentType.booleanInput,
+                      ComponentType.numberInput,
+                      ComponentType.stringInput,
+                    ],
+                    position),
               ],
             ),
           ),
@@ -758,7 +778,7 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   Widget _buildComponentCategorySection(
-      String title, List<ComponentType> types) {
+      String title, List<ComponentType> types, Offset position) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -779,7 +799,7 @@ class _FlowScreenState extends State<FlowScreen> {
           children: types.map((type) {
             return InkWell(
               onTap: () {
-                _addNewComponent(type);
+                _addNewComponent(type, clickPosition: position);
                 Navigator.pop(context);
               },
               child: Container(
@@ -803,7 +823,7 @@ class _FlowScreenState extends State<FlowScreen> {
     );
   }
 
-  void _addNewComponent(ComponentType type) {
+  void _addNewComponent(ComponentType type, {Offset? clickPosition}) {
     String baseName = getNameForComponentType(type);
     int counter = 1;
     String newName = '$baseName $counter';
@@ -818,29 +838,35 @@ class _FlowScreenState extends State<FlowScreen> {
       type: type,
     );
 
-    final RenderBox? viewerChildRenderBox =
-        _interactiveViewerChildKey.currentContext?.findRenderObject()
-            as RenderBox?;
+    Offset newPosition;
 
-    Offset newPosition = Offset(_canvasSize.width / 2, _canvasSize.height / 2);
+    if (clickPosition != null) {
+      newPosition = clickPosition;
+    } else {
+      final RenderBox? viewerChildRenderBox =
+          _interactiveViewerChildKey.currentContext?.findRenderObject()
+              as RenderBox?;
 
-    if (viewerChildRenderBox != null) {
-      final viewportSize = viewerChildRenderBox.size;
-      final viewportCenter =
-          Offset(viewportSize.width / 2, viewportSize.height / 2);
+      newPosition = Offset(_canvasSize.width / 2, _canvasSize.height / 2);
 
-      final matrix = _transformationController.value;
-      final inverseMatrix = Matrix4.inverted(matrix);
-      final transformedCenter =
-          MatrixUtils.transformPoint(inverseMatrix, viewportCenter);
+      if (viewerChildRenderBox != null) {
+        final viewportSize = viewerChildRenderBox.size;
+        final viewportCenter =
+            Offset(viewportSize.width / 2, viewportSize.height / 2);
 
-      final random = Random();
-      final randomOffset = Offset(
-        (random.nextDouble() * 200) - 100,
-        (random.nextDouble() * 200) - 100,
-      );
+        final matrix = _transformationController.value;
+        final inverseMatrix = Matrix4.inverted(matrix);
+        final transformedCenter =
+            MatrixUtils.transformPoint(inverseMatrix, viewportCenter);
 
-      newPosition = transformedCenter + randomOffset;
+        final random = Random();
+        final randomOffset = Offset(
+          (random.nextDouble() * 200) - 100,
+          (random.nextDouble() * 200) - 100,
+        );
+
+        newPosition = transformedCenter + randomOffset;
+      }
     }
 
     final newKey = GlobalKey();
