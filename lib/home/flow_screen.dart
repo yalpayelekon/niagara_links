@@ -13,6 +13,7 @@ import 'component_widget.dart';
 import 'connection_painter.dart';
 import 'command.dart';
 import 'utils.dart';
+import 'context_menus.dart';
 
 class UndoIntent extends Intent {
   const UndoIntent();
@@ -248,18 +249,6 @@ class _FlowScreenState extends State<FlowScreen> {
       _operations.addNewComponent,
       position: position,
     );
-  }
-
-  void _handleCopyComponent(Component component) {
-    _operations.handleCopyComponent(component);
-  }
-
-  void _handleEditComponent(BuildContext context, Component component) {
-    _operations.handleEditComponent(context, component);
-  }
-
-  void _handleDeleteComponent(Component component) {
-    _operations.handleDeleteComponent(component);
   }
 
   void _handleValueChanged(
@@ -625,138 +614,21 @@ class _FlowScreenState extends State<FlowScreen> {
       canvasPosition = MatrixUtils.transformPoint(inverseMatrix, localPosition);
     }
 
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-
-    showMenu(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(globalPosition, globalPosition),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem(
-          value: 'add-component',
-          child: Row(
-            children: const [
-              Icon(Icons.add_box, size: 18),
-              SizedBox(width: 8),
-              Text('Add Component'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'paste',
-          child: Row(
-            children: const [
-              Icon(Icons.paste, size: 18),
-              SizedBox(width: 8),
-              Text('Paste'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'select-all',
-          child: Row(
-            children: const [
-              Icon(Icons.select_all, size: 18),
-              SizedBox(width: 8),
-              Text('Select All'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'clear-canvas',
-          child: Row(
-            children: const [
-              Icon(Icons.clear, size: 18, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Clear Canvas', style: TextStyle(color: Colors.red)),
-            ],
-          ),
-        ),
-      ],
-    ).then((value) {
-      if (value == null) return;
-
-      switch (value) {
-        case 'add-component':
-          _showAddComponentDialogAtPosition(canvasPosition);
-          break;
-        case 'paste':
-          // Placeholder for paste functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Paste functionality coming soon'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-          break;
-        case 'select-all':
-          // Placeholder for select all functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Select all functionality coming soon'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-          break;
-        case 'clear-canvas':
-          // Placeholder for clear canvas functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Clear canvas functionality coming soon'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-          break;
-      }
-    });
+    ContextMenus.showCanvasContextMenu(
+      context,
+      globalPosition,
+      canvasPosition,
+      _showAddComponentDialogAtPosition,
+    );
   }
 
-  Widget _buildComponentCategorySection(
-      String title, List<ComponentType> types, Offset position) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 12.0, bottom: 6.0),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ),
-        const Divider(),
-        Wrap(
-          spacing: 8.0,
-          runSpacing: 8.0,
-          children: types.map((type) {
-            return InkWell(
-              onTap: () {
-                _addNewComponent(type, clickPosition: position);
-                Navigator.pop(context);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(4.0),
-                ),
-                child: Column(
-                  children: [
-                    Icon(getIconForComponentType(type)),
-                    const SizedBox(height: 4.0),
-                    Text(getNameForComponentType(type)),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
+  void _showContextMenu(
+      BuildContext context, Offset position, Component component) {
+    ContextMenus.showComponentContextMenu(
+      context,
+      position,
+      component,
+      _operations,
     );
   }
 
@@ -823,66 +695,6 @@ class _FlowScreenState extends State<FlowScreen> {
       _componentKeys[newComponent.id] = newKey;
 
       _updateCanvasSize();
-    });
-  }
-
-  void _showContextMenu(
-      BuildContext context, Offset position, Component component) {
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-
-    showMenu(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(position, position),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem(
-          value: 'copy',
-          child: Row(
-            children: const [
-              Icon(Icons.copy, size: 18),
-              SizedBox(width: 8),
-              Text('Copy'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'edit',
-          child: Row(
-            children: const [
-              Icon(Icons.edit, size: 18),
-              SizedBox(width: 8),
-              Text('Edit'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: const [
-              Icon(Icons.delete, size: 18),
-              SizedBox(width: 8),
-              Text('Delete'),
-            ],
-          ),
-        ),
-      ],
-    ).then((value) {
-      if (value == null) return;
-
-      switch (value) {
-        case 'copy':
-          _handleCopyComponent(component);
-          break;
-        case 'edit':
-          _handleEditComponent(context, component);
-          break;
-        case 'delete':
-          _handleDeleteComponent(component);
-          break;
-      }
     });
   }
 }
