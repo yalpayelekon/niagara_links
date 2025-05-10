@@ -44,8 +44,8 @@ class _FlowScreenState extends State<FlowScreen> {
 
   PortDragInfo? _currentDraggedPort;
   Offset? _tempLineEndPoint;
-  Offset? _dragStartPosition; // Track starting position for move commands
-
+  Offset? _dragStartPosition;
+  Offset? _clipboardComponentPosition;
   final TransformationController _transformationController =
       TransformationController();
   final GlobalKey _interactiveViewerChildKey = GlobalKey();
@@ -388,22 +388,29 @@ class _FlowScreenState extends State<FlowScreen> {
           PasteIntent: CallbackAction<PasteIntent>(
             onInvoke: (PasteIntent intent) {
               if (_clipboardComponent != null) {
-                // Get center of visible viewport
-                final RenderBox? viewerChildRenderBox =
-                    _interactiveViewerChildKey.currentContext
-                        ?.findRenderObject() as RenderBox?;
+                if (_clipboardComponentPosition != null) {
+                  const double offsetAmount = 30.0;
+                  final Offset pastePosition = _clipboardComponentPosition! +
+                      const Offset(offsetAmount, offsetAmount);
 
-                if (viewerChildRenderBox != null) {
-                  final viewportSize = viewerChildRenderBox.size;
-                  final viewportCenter =
-                      Offset(viewportSize.width / 2, viewportSize.height / 2);
+                  _handlePasteComponent(pastePosition);
+                } else {
+                  final RenderBox? viewerChildRenderBox =
+                      _interactiveViewerChildKey.currentContext
+                          ?.findRenderObject() as RenderBox?;
 
-                  final matrix = _transformationController.value;
-                  final inverseMatrix = Matrix4.inverted(matrix);
-                  final canvasPosition =
-                      MatrixUtils.transformPoint(inverseMatrix, viewportCenter);
+                  if (viewerChildRenderBox != null) {
+                    final viewportSize = viewerChildRenderBox.size;
+                    final viewportCenter =
+                        Offset(viewportSize.width / 2, viewportSize.height / 2);
 
-                  _handlePasteComponent(canvasPosition);
+                    final matrix = _transformationController.value;
+                    final inverseMatrix = Matrix4.inverted(matrix);
+                    final canvasPosition = MatrixUtils.transformPoint(
+                        inverseMatrix, viewportCenter);
+
+                    _handlePasteComponent(canvasPosition);
+                  }
                 }
               }
               return null;
@@ -1091,9 +1098,8 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _handleCopyComponent(Component component) {
-    // Copy component to clipboard
     _clipboardComponent = component;
-
+    _clipboardComponentPosition = _componentPositions[component.id];
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Copied ${component.id}'),
@@ -1128,6 +1134,7 @@ class _FlowScreenState extends State<FlowScreen> {
       }
     }
 
+    _clipboardComponent = null;
     final newKey = GlobalKey();
 
     Map<String, dynamic> state = {
