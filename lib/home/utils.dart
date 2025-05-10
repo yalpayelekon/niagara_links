@@ -20,14 +20,6 @@ String getComponentSymbol(Component component) {
       return '×';
     case ComponentType.divide:
       return '÷';
-    case ComponentType.max:
-      return 'MAX';
-    case ComponentType.min:
-      return 'MIN';
-    case ComponentType.power:
-      return 'POW';
-    case ComponentType.abs:
-      return '|x|';
     case ComponentType.isGreaterThan:
       return '>';
     case ComponentType.isLessThan:
@@ -57,10 +49,6 @@ Color getComponentColor(Component component) {
     case ComponentType.subtract:
     case ComponentType.multiply:
     case ComponentType.divide:
-    case ComponentType.max:
-    case ComponentType.min:
-    case ComponentType.power:
-    case ComponentType.abs:
       return Colors.lightGreen[100]!;
 
     // Comparison operations - purple family
@@ -93,10 +81,6 @@ Color getComponentTextColor(Component component) {
     case ComponentType.subtract:
     case ComponentType.multiply:
     case ComponentType.divide:
-    case ComponentType.max:
-    case ComponentType.min:
-    case ComponentType.power:
-    case ComponentType.abs:
       return Colors.green[800]!;
 
     // Comparison operations - purple family
@@ -164,14 +148,6 @@ IconData getIconForComponentType(ComponentType type) {
       return Icons.close;
     case ComponentType.divide:
       return Icons.expand;
-    case ComponentType.max:
-      return Icons.arrow_upward;
-    case ComponentType.min:
-      return Icons.arrow_downward;
-    case ComponentType.power:
-      return Icons.upload;
-    case ComponentType.abs:
-      return Icons.straighten;
 
     case ComponentType.isGreaterThan:
       return Icons.navigate_next;
@@ -208,14 +184,6 @@ String getNameForComponentType(ComponentType type) {
       return 'Multiply';
     case ComponentType.divide:
       return 'Divide';
-    case ComponentType.max:
-      return 'Maximum';
-    case ComponentType.min:
-      return 'Minimum';
-    case ComponentType.power:
-      return 'Power';
-    case ComponentType.abs:
-      return 'Absolute Value';
 
     case ComponentType.isGreaterThan:
       return 'Greater Than';
@@ -255,9 +223,6 @@ List<ComponentType> getCompatibleTypes(ComponentType currentType) {
     case ComponentType.subtract:
     case ComponentType.multiply:
     case ComponentType.divide:
-    case ComponentType.max:
-    case ComponentType.min:
-    case ComponentType.power:
       return [
         ComponentType.add,
         ComponentType.subtract,
@@ -272,8 +237,6 @@ List<ComponentType> getCompatibleTypes(ComponentType currentType) {
         ComponentType.isGreaterThan,
         ComponentType.isLessThan,
       ];
-    case ComponentType.abs:
-      return [ComponentType.abs];
 
     // Comparison with any type
     case ComponentType.isEqual:
