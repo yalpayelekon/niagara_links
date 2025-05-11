@@ -171,7 +171,6 @@ class _FlowScreenState extends State<FlowScreen> {
   void _initializeComponents() {
     // Add some starter components of various types
 
-    // Boolean input
     final boolInput = Component(
       id: 'Boolean Input',
       type: ComponentType.booleanInput,
@@ -180,7 +179,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[boolInput.id] = const Offset(100, 100);
     _componentKeys[boolInput.id] = GlobalKey();
 
-    // Number inputs
     final num1Input = Component(
       id: 'Number 1',
       type: ComponentType.numberInput,
@@ -197,7 +195,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[num2Input.id] = const Offset(100, 300);
     _componentKeys[num2Input.id] = GlobalKey();
 
-    // String input
     final stringInput = Component(
       id: 'String Input',
       type: ComponentType.stringInput,
@@ -206,7 +203,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[stringInput.id] = const Offset(100, 400);
     _componentKeys[stringInput.id] = GlobalKey();
 
-    // Logic component
     final andGate = Component(
       id: 'AND Gate',
       type: ComponentType.andGate,
@@ -215,7 +211,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[andGate.id] = const Offset(350, 150);
     _componentKeys[andGate.id] = GlobalKey();
 
-    // Math component
     final addComp = Component(
       id: 'Addition',
       type: ComponentType.add,
@@ -224,7 +219,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[addComp.id] = const Offset(350, 250);
     _componentKeys[addComp.id] = GlobalKey();
 
-    // Comparison component
     final greaterThan = Component(
       id: 'Greater Than',
       type: ComponentType.isGreaterThan,
@@ -233,7 +227,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[greaterThan.id] = const Offset(350, 350);
     _componentKeys[greaterThan.id] = GlobalKey();
 
-    // Equality component
     final equals = Component(
       id: 'Equality',
       type: ComponentType.isEqual,
@@ -242,25 +235,20 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[equals.id] = const Offset(600, 250);
     _componentKeys[equals.id] = GlobalKey();
 
-    // Set initial values
     boolInput.ports[0].value = true;
     num1Input.ports[0].value = 5.0;
     num2Input.ports[0].value = 3.0;
     stringInput.ports[0].value = "Hello";
 
-    // Calculate initial values
     _flowManager.recalculateAll();
 
-    // Update canvas size to fit all components
     _updateCanvasSize();
 
-    // Clear the command history since we're setting up the initial state
     _commandHistory.clear();
   }
 
   void _handleValueChanged(
       String componentId, int portIndex, dynamic newValue) {
-    // Get the current value before changing it
     Component? component = _flowManager.findComponentById(componentId);
     if (component != null && portIndex < component.ports.length) {
       dynamic oldValue = component.ports[portIndex].value;
@@ -329,7 +317,6 @@ class _FlowScreenState extends State<FlowScreen> {
             _commandHistory.execute(command);
           });
         } else {
-          // Show an error snackbar if the connection can't be created
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
@@ -1384,7 +1371,7 @@ class _FlowScreenState extends State<FlowScreen> {
   void _handleMoveComponentDown(Component component) {
     Offset? canvasPosition = _componentPositions[component.id];
     if (canvasPosition != null) {
-      canvasPosition = Offset(canvasPosition.dx, canvasPosition.dy + 30.0);
+      canvasPosition = Offset(canvasPosition.dx, canvasPosition.dy + 20);
       setState(() {
         _componentPositions[component.id] = canvasPosition!;
         final command = MoveComponentCommand(
@@ -1402,7 +1389,7 @@ class _FlowScreenState extends State<FlowScreen> {
   void _handleMoveComponentUp(Component component) {
     Offset? canvasPosition = _componentPositions[component.id];
     if (canvasPosition != null) {
-      canvasPosition = Offset(canvasPosition.dx, canvasPosition.dy - 30.0);
+      canvasPosition = Offset(canvasPosition.dx, canvasPosition.dy - 20);
       setState(() {
         _componentPositions[component.id] = canvasPosition!;
         final command = MoveComponentCommand(
@@ -1420,7 +1407,7 @@ class _FlowScreenState extends State<FlowScreen> {
   void _handleMoveComponentLeft(Component component) {
     Offset? canvasPosition = _componentPositions[component.id];
     if (canvasPosition != null) {
-      canvasPosition = Offset(canvasPosition.dx - 30.0, canvasPosition.dy);
+      canvasPosition = Offset(canvasPosition.dx - 20, canvasPosition.dy);
       setState(() {
         _componentPositions[component.id] = canvasPosition!;
         final command = MoveComponentCommand(
@@ -1438,7 +1425,7 @@ class _FlowScreenState extends State<FlowScreen> {
   void _handleMoveComponentRight(Component component) {
     Offset? canvasPosition = _componentPositions[component.id];
     if (canvasPosition != null) {
-      canvasPosition = Offset(canvasPosition.dx + 30.0, canvasPosition.dy);
+      canvasPosition = Offset(canvasPosition.dx + 20, canvasPosition.dy);
       setState(() {
         _componentPositions[component.id] = canvasPosition!;
         final command = MoveComponentCommand(
