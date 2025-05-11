@@ -10,6 +10,7 @@ import 'manager.dart';
 import 'component_widget.dart';
 import 'connection_painter.dart';
 import 'command.dart';
+import 'selection_box_painter.dart';
 import 'utils.dart';
 
 class UndoIntent extends Intent {
@@ -554,6 +555,105 @@ class _FlowScreenState extends State<FlowScreen> {
                     tempLineEndPoint: _tempLineEndPoint,
                   ),
                   child: GestureDetector(
+                    onTapDown: (details) {
+                      Offset? canvasPosition =
+                          getPosition(details.globalPosition);
+                      if (canvasPosition != null) {
+                        setState(() {
+                          _selectionBoxStart = canvasPosition;
+                          _isDraggingSelectionBox = false;
+                        });
+                      }
+                    },
+                    onPanStart: (details) {
+                      Offset? canvasPosition =
+                          getPosition(details.globalPosition);
+                      if (canvasPosition != null) {
+                        // Check if we're starting a drag on empty canvas
+                        bool isClickOnComponent = false;
+
+                        for (final componentId in _componentPositions.keys) {
+                          final componentPos =
+                              _componentPositions[componentId]!;
+                          const double componentWidth = 180.0;
+                          const double componentHeight = 150.0;
+
+                          final componentRect = Rect.fromLTWH(
+                            componentPos.dx,
+                            componentPos.dy,
+                            componentWidth,
+                            componentHeight,
+                          );
+
+                          if (componentRect.contains(canvasPosition)) {
+                            isClickOnComponent = true;
+                            break;
+                          }
+                        }
+
+                        if (!isClickOnComponent) {
+                          setState(() {
+                            _isDraggingSelectionBox = true;
+                            _selectionBoxStart = canvasPosition;
+                            _selectionBoxEnd = canvasPosition;
+                          });
+                        }
+                      }
+                    },
+                    onPanUpdate: (details) {
+                      if (_isDraggingSelectionBox) {
+                        Offset? canvasPosition =
+                            getPosition(details.globalPosition);
+                        if (canvasPosition != null) {
+                          setState(() {
+                            _selectionBoxEnd = canvasPosition;
+                          });
+                        }
+                      }
+                    },
+                    onPanEnd: (details) {
+                      if (_isDraggingSelectionBox &&
+                          _selectionBoxStart != null &&
+                          _selectionBoxEnd != null) {
+                        // Select all components within the selection box
+                        final selectionRect = Rect.fromPoints(
+                            _selectionBoxStart!, _selectionBoxEnd!);
+
+                        setState(() {
+                          // Clear previous selection unless Ctrl is pressed
+                          if (!HardwareKeyboard.instance.isControlPressed) {
+                            _selectedComponents.clear();
+                          }
+
+                          // Add components that intersect with selection box
+                          for (final component in _flowManager.components) {
+                            final componentPos =
+                                _componentPositions[component.id];
+                            if (componentPos != null) {
+                              const double componentWidth = 180.0;
+                              const double componentHeight = 150.0;
+
+                              final componentRect = Rect.fromLTWH(
+                                componentPos.dx,
+                                componentPos.dy,
+                                componentWidth,
+                                componentHeight,
+                              );
+
+                              // Check if component rectangle intersects with selection rectangle
+                              if (selectionRect.overlaps(componentRect)) {
+                                _selectedComponents.add(component);
+                              }
+                            }
+                          }
+
+                          // Clear selection box
+                          _isDraggingSelectionBox = false;
+                          _selectionBoxStart = null;
+                          _selectionBoxEnd = null;
+                        });
+                      }
+                    },
                     onTap: () {
                       setState(() {
                         _selectedComponents.clear();
@@ -602,6 +702,16 @@ class _FlowScreenState extends State<FlowScreen> {
                             painter: GridPainter(),
                             size: _canvasSize,
                           ),
+                          if (_isDraggingSelectionBox &&
+                              _selectionBoxStart != null &&
+                              _selectionBoxEnd != null)
+                            CustomPaint(
+                              painter: SelectionBoxPainter(
+                                start: _selectionBoxStart,
+                                end: _selectionBoxEnd,
+                              ),
+                              size: _canvasSize,
+                            ),
                           if (_flowManager.components.isEmpty)
                             const Center(
                               child: Text(
@@ -659,6 +769,7 @@ class _FlowScreenState extends State<FlowScreen> {
                                     _dragStartPosition =
                                         _componentPositions[component.id];
                                   },
+                                  // In the Draggable widget for components, update onDragEnd:
                                   onDragEnd: (details) {
                                     final RenderBox? viewerChildRenderBox =
                                         _interactiveViewerChildKey
@@ -673,16 +784,46 @@ class _FlowScreenState extends State<FlowScreen> {
                                       if (_dragStartPosition != null &&
                                           _dragStartPosition != localOffset) {
                                         setState(() {
-                                          final command = MoveComponentCommand(
-                                            component.id,
-                                            localOffset,
-                                            _dragStartPosition!,
-                                            _componentPositions,
-                                          );
-                                          _commandHistory.execute(command);
+                                          final offset =
+                                              localOffset - _dragStartPosition!;
+
+                                          if (_selectedComponents
+                                                  .contains(component) &&
+                                              _selectedComponents.length > 1) {
+                                            for (var selectedComponent
+                                                in _selectedComponents) {
+                                              final currentPos =
+                                                  _componentPositions[
+                                                      selectedComponent.id];
+                                              if (currentPos != null) {
+                                                final newPos =
+                                                    currentPos + offset;
+                                                final command =
+                                                    MoveComponentCommand(
+                                                  selectedComponent.id,
+                                                  newPos,
+                                                  currentPos,
+                                                  _componentPositions,
+                                                );
+                                                _commandHistory
+                                                    .execute(command);
+                                              }
+                                            }
+                                          } else {
+                                            final command =
+                                                MoveComponentCommand(
+                                              component.id,
+                                              localOffset,
+                                              _dragStartPosition!,
+                                              _componentPositions,
+                                            );
+                                            _commandHistory.execute(command);
+
+                                            _selectedComponents.clear();
+                                            _selectedComponents.add(component);
+                                          }
 
                                           _dragStartPosition = null;
-                                          _selectedComponents.add(component);
                                           _updateCanvasSize();
                                         });
                                       }
