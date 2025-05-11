@@ -32,6 +32,26 @@ class DeleteIntent extends Intent {
   const DeleteIntent();
 }
 
+class MultipleSelectIntent extends Intent {
+  const MultipleSelectIntent();
+}
+
+class MoveUpIntent extends Intent {
+  const MoveUpIntent();
+}
+
+class MoveDownIntent extends Intent {
+  const MoveDownIntent();
+}
+
+class MoveLeftIntent extends Intent {
+  const MoveLeftIntent();
+}
+
+class MoveRightIntent extends Intent {
+  const MoveRightIntent();
+}
+
 class FlowScreen extends StatefulWidget {
   const FlowScreen({super.key});
 
@@ -340,6 +360,12 @@ class _FlowScreenState extends State<FlowScreen> {
         LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
             const PasteIntent(),
         LogicalKeySet(LogicalKeyboardKey.delete): const DeleteIntent(),
+        LogicalKeySet(LogicalKeyboardKey.arrowDown): const MoveDownIntent(),
+        LogicalKeySet(LogicalKeyboardKey.arrowLeft): const MoveLeftIntent(),
+        LogicalKeySet(LogicalKeyboardKey.arrowRight): const MoveRightIntent(),
+        LogicalKeySet(LogicalKeyboardKey.arrowUp): const MoveUpIntent(),
+        LogicalKeySet(LogicalKeyboardKey.delete, LogicalKeyboardKey.select):
+            const MultipleSelectIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -375,6 +401,38 @@ class _FlowScreenState extends State<FlowScreen> {
             onInvoke: (DeleteIntent intent) {
               if (_selectedComponent != null) {
                 _handleDeleteComponent(_selectedComponent!);
+              }
+              return null;
+            },
+          ),
+          MoveDownIntent: CallbackAction<MoveDownIntent>(
+            onInvoke: (MoveDownIntent intent) {
+              if (_selectedComponent != null) {
+                _handleMoveComponentDown(_selectedComponent!);
+              }
+              return null;
+            },
+          ),
+          MoveLeftIntent: CallbackAction<MoveLeftIntent>(
+            onInvoke: (MoveLeftIntent intent) {
+              if (_selectedComponent != null) {
+                _handleMoveComponentLeft(_selectedComponent!);
+              }
+              return null;
+            },
+          ),
+          MoveRightIntent: CallbackAction<MoveRightIntent>(
+            onInvoke: (MoveRightIntent intent) {
+              if (_selectedComponent != null) {
+                _handleMoveComponentRight(_selectedComponent!);
+              }
+              return null;
+            },
+          ),
+          MoveUpIntent: CallbackAction<MoveUpIntent>(
+            onInvoke: (MoveUpIntent intent) {
+              if (_selectedComponent != null) {
+                _handleMoveComponentUp(_selectedComponent!);
               }
               return null;
             },
@@ -1152,5 +1210,77 @@ class _FlowScreenState extends State<FlowScreen> {
 
       _updateCanvasSize();
     });
+  }
+
+  void _handleMoveComponentDown(Component component) {
+    Offset? canvasPosition = _componentPositions[component.id];
+    if (canvasPosition != null) {
+      canvasPosition = Offset(canvasPosition.dx, canvasPosition.dy + 30.0);
+      setState(() {
+        _componentPositions[component.id] = canvasPosition!;
+        final command = MoveComponentCommand(
+          component.id,
+          canvasPosition,
+          _componentPositions[component.id]!,
+          _componentPositions,
+        );
+        _commandHistory.execute(command);
+        _updateCanvasSize();
+      });
+    }
+  }
+
+  void _handleMoveComponentUp(Component component) {
+    Offset? canvasPosition = _componentPositions[component.id];
+    if (canvasPosition != null) {
+      canvasPosition = Offset(canvasPosition.dx, canvasPosition.dy - 30.0);
+      setState(() {
+        _componentPositions[component.id] = canvasPosition!;
+        final command = MoveComponentCommand(
+          component.id,
+          canvasPosition,
+          _componentPositions[component.id]!,
+          _componentPositions,
+        );
+        _commandHistory.execute(command);
+        _updateCanvasSize();
+      });
+    }
+  }
+
+  void _handleMoveComponentLeft(Component component) {
+    Offset? canvasPosition = _componentPositions[component.id];
+    if (canvasPosition != null) {
+      canvasPosition = Offset(canvasPosition.dx - 30.0, canvasPosition.dy);
+      setState(() {
+        _componentPositions[component.id] = canvasPosition!;
+        final command = MoveComponentCommand(
+          component.id,
+          canvasPosition,
+          _componentPositions[component.id]!,
+          _componentPositions,
+        );
+        _commandHistory.execute(command);
+        _updateCanvasSize();
+      });
+    }
+  }
+
+  void _handleMoveComponentRight(Component component) {
+    Offset? canvasPosition = _componentPositions[component.id];
+    if (canvasPosition != null) {
+      canvasPosition = Offset(canvasPosition.dx + 30.0, canvasPosition.dy);
+      setState(() {
+        _componentPositions[component.id] = canvasPosition!;
+        final command = MoveComponentCommand(
+          component.id,
+          canvasPosition,
+          _componentPositions[component.id]!,
+          _componentPositions,
+        );
+        _commandHistory.execute(command);
+        _updateCanvasSize();
+      });
+    }
   }
 }
