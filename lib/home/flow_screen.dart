@@ -32,10 +32,6 @@ class DeleteIntent extends Intent {
   const DeleteIntent();
 }
 
-class MultipleSelectIntent extends Intent {
-  const MultipleSelectIntent();
-}
-
 class MoveUpIntent extends Intent {
   const MoveUpIntent();
 }
@@ -66,6 +62,10 @@ class _FlowScreenState extends State<FlowScreen> {
   final Map<String, Offset> _componentPositions = {};
   final Map<String, GlobalKey> _componentKeys = {};
 
+  Offset? _selectionBoxStart;
+  Offset? _selectionBoxEnd;
+  bool _isDraggingSelectionBox = false;
+
   PortDragInfo? _currentDraggedPort;
   Offset? _tempLineEndPoint;
   Offset? _dragStartPosition;
@@ -79,7 +79,7 @@ class _FlowScreenState extends State<FlowScreen> {
   static const double _canvasPadding = 100.0; // Padding around components
 
   Component? _clipboardComponent;
-  Component? _selectedComponent;
+  Set<Component> _selectedComponents = {};
 
   @override
   void initState() {
@@ -364,8 +364,6 @@ class _FlowScreenState extends State<FlowScreen> {
         LogicalKeySet(LogicalKeyboardKey.arrowLeft): const MoveLeftIntent(),
         LogicalKeySet(LogicalKeyboardKey.arrowRight): const MoveRightIntent(),
         LogicalKeySet(LogicalKeyboardKey.arrowUp): const MoveUpIntent(),
-        LogicalKeySet(LogicalKeyboardKey.delete, LogicalKeyboardKey.select):
-            const MultipleSelectIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -389,50 +387,75 @@ class _FlowScreenState extends State<FlowScreen> {
               return null;
             },
           ),
-          CopyIntent: CallbackAction<CopyIntent>(
-            onInvoke: (CopyIntent intent) {
-              if (_selectedComponent != null) {
-                _handleCopyComponent(_selectedComponent!);
-              }
-              return null;
-            },
-          ),
+          // For Delete action:
           DeleteIntent: CallbackAction<DeleteIntent>(
             onInvoke: (DeleteIntent intent) {
-              if (_selectedComponent != null) {
-                _handleDeleteComponent(_selectedComponent!);
+              if (_selectedComponents.isNotEmpty) {
+                // Handle multiple deletion
+                setState(() {
+                  for (var component in _selectedComponents.toList()) {
+                    _handleDeleteComponent(component);
+                  }
+                  _selectedComponents.clear();
+                });
               }
               return null;
             },
           ),
+          CopyIntent: CallbackAction<CopyIntent>(
+            onInvoke: (CopyIntent intent) {
+              if (_selectedComponents.length == 1) {
+                // Copy single component for now
+                _handleCopyComponent(_selectedComponents.first);
+              } else if (_selectedComponents.isNotEmpty) {
+                // TODO: Implement multiple component copy
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Multiple copy not yet implemented'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              }
+              return null;
+            },
+          ),
+
           MoveDownIntent: CallbackAction<MoveDownIntent>(
             onInvoke: (MoveDownIntent intent) {
-              if (_selectedComponent != null) {
-                _handleMoveComponentDown(_selectedComponent!);
+              if (_selectedComponents.isNotEmpty) {
+                for (var component in _selectedComponents) {
+                  _handleMoveComponentDown(component);
+                }
               }
               return null;
             },
           ),
           MoveLeftIntent: CallbackAction<MoveLeftIntent>(
             onInvoke: (MoveLeftIntent intent) {
-              if (_selectedComponent != null) {
-                _handleMoveComponentLeft(_selectedComponent!);
+              if (_selectedComponents.isNotEmpty) {
+                for (var component in _selectedComponents) {
+                  _handleMoveComponentLeft(component);
+                }
               }
               return null;
             },
           ),
           MoveRightIntent: CallbackAction<MoveRightIntent>(
             onInvoke: (MoveRightIntent intent) {
-              if (_selectedComponent != null) {
-                _handleMoveComponentRight(_selectedComponent!);
+              if (_selectedComponents.isNotEmpty) {
+                for (var component in _selectedComponents) {
+                  _handleMoveComponentRight(component);
+                }
               }
               return null;
             },
           ),
           MoveUpIntent: CallbackAction<MoveUpIntent>(
             onInvoke: (MoveUpIntent intent) {
-              if (_selectedComponent != null) {
-                _handleMoveComponentUp(_selectedComponent!);
+              if (_selectedComponents.isNotEmpty) {
+                for (var component in _selectedComponents) {
+                  _handleMoveComponentUp(component);
+                }
               }
               return null;
             },
@@ -533,7 +556,7 @@ class _FlowScreenState extends State<FlowScreen> {
                   child: GestureDetector(
                     onTap: () {
                       setState(() {
-                        _selectedComponent = null;
+                        _selectedComponents.clear();
                       });
                     },
                     onSecondaryTapDown: (TapDownDetails details) {
@@ -589,7 +612,6 @@ class _FlowScreenState extends State<FlowScreen> {
                                 ),
                               ),
                             ),
-                          // Components
                           ..._flowManager.components.map(
                             (component) {
                               return Positioned(
@@ -603,8 +625,8 @@ class _FlowScreenState extends State<FlowScreen> {
                                     color: Colors.transparent,
                                     child: ComponentWidget(
                                       component: component,
-                                      isSelected: _selectedComponent?.id ==
-                                          component.id,
+                                      isSelected: _selectedComponents
+                                          .contains(component),
                                       widgetKey: _componentKeys[component.id] ??
                                           GlobalKey(),
                                       position:
@@ -620,8 +642,8 @@ class _FlowScreenState extends State<FlowScreen> {
                                     opacity: 0.3,
                                     child: ComponentWidget(
                                       component: component,
-                                      isSelected: _selectedComponent?.id ==
-                                          component.id,
+                                      isSelected: _selectedComponents
+                                          .contains(component),
                                       widgetKey: GlobalKey(),
                                       position:
                                           _componentPositions[component.id] ??
@@ -660,7 +682,7 @@ class _FlowScreenState extends State<FlowScreen> {
                                           _commandHistory.execute(command);
 
                                           _dragStartPosition = null;
-                                          _selectedComponent = component;
+                                          _selectedComponents.add(component);
                                           _updateCanvasSize();
                                         });
                                       }
@@ -672,14 +694,28 @@ class _FlowScreenState extends State<FlowScreen> {
                                           details.globalPosition, component);
                                     },
                                     onTap: () {
-                                      setState(() {
-                                        _selectedComponent = component;
-                                      });
+                                      if (HardwareKeyboard
+                                          .instance.isControlPressed) {
+                                        setState(() {
+                                          if (_selectedComponents
+                                              .contains(component)) {
+                                            _selectedComponents
+                                                .remove(component);
+                                          } else {
+                                            _selectedComponents.add(component);
+                                          }
+                                        });
+                                      } else {
+                                        setState(() {
+                                          _selectedComponents.clear();
+                                          _selectedComponents.add(component);
+                                        });
+                                      }
                                     },
                                     child: ComponentWidget(
                                       component: component,
-                                      isSelected: _selectedComponent?.id ==
-                                          component.id,
+                                      isSelected: _selectedComponents
+                                          .contains(component),
                                       widgetKey: _componentKeys[component.id] ??
                                           GlobalKey(),
                                       position:
