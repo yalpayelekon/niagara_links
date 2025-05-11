@@ -28,6 +28,10 @@ class PasteIntent extends Intent {
   const PasteIntent();
 }
 
+class DeleteIntent extends Intent {
+  const DeleteIntent();
+}
+
 class FlowScreen extends StatefulWidget {
   const FlowScreen({super.key});
 
@@ -325,6 +329,7 @@ class _FlowScreenState extends State<FlowScreen> {
   @override
   Widget build(BuildContext context) {
     return Shortcuts(
+      // TODO: include MAC shortcuts
       shortcuts: <LogicalKeySet, Intent>{
         LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyZ):
             const UndoIntent(),
@@ -334,18 +339,7 @@ class _FlowScreenState extends State<FlowScreen> {
             const CopyIntent(),
         LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
             const PasteIntent(),
-        // For Mac users
-        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyZ):
-            const UndoIntent(),
-        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyY):
-            const RedoIntent(),
-        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyC):
-            const CopyIntent(),
-        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyV):
-            const PasteIntent(),
-        // Additional Mac shortcut (Command+Shift+Z)
-        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.shift,
-            LogicalKeyboardKey.keyZ): const RedoIntent(),
+        LogicalKeySet(LogicalKeyboardKey.delete): const DeleteIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -373,6 +367,14 @@ class _FlowScreenState extends State<FlowScreen> {
             onInvoke: (CopyIntent intent) {
               if (_selectedComponent != null) {
                 _handleCopyComponent(_selectedComponent!);
+              }
+              return null;
+            },
+          ),
+          DeleteIntent: CallbackAction<DeleteIntent>(
+            onInvoke: (DeleteIntent intent) {
+              if (_selectedComponent != null) {
+                _handleDeleteComponent(_selectedComponent!);
               }
               return null;
             },
