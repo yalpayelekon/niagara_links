@@ -72,16 +72,12 @@ class _FlowScreenState extends State<FlowScreen> {
     double maxX = double.negativeInfinity;
     double maxY = double.negativeInfinity;
 
-    // Calculate the bounding box of all components
     for (var entry in _componentPositions.entries) {
       final position = entry.value;
       final componentId = entry.key;
 
-      // We need to estimate component size since we're not storing it separately
-      // You might want to adjust these values based on your actual component sizes
       const estimatedWidth = 180.0; // 160 width + 20 padding
-      const estimatedHeight =
-          120.0; // Estimated height based on your component designs
+      const estimatedHeight = 120.0;
 
       minX = min(minX, position.dx);
       minY = min(minY, position.dy);
@@ -93,7 +89,6 @@ class _FlowScreenState extends State<FlowScreen> {
     Size newCanvasSize = _canvasSize;
     Offset newCanvasOffset = _canvasOffset;
 
-    // Check if we need to expand the canvas to the left or top
     if (minX < _canvasPadding) {
       double extraWidth = _canvasPadding - minX;
       newCanvasSize =
@@ -101,7 +96,6 @@ class _FlowScreenState extends State<FlowScreen> {
       newCanvasOffset =
           Offset(_canvasOffset.dx - extraWidth, newCanvasOffset.dy);
 
-      // Shift all components to the right
       for (var id in _componentPositions.keys) {
         _componentPositions[id] = Offset(
           _componentPositions[id]!.dx + extraWidth,
@@ -118,7 +112,6 @@ class _FlowScreenState extends State<FlowScreen> {
       newCanvasOffset =
           Offset(newCanvasOffset.dx, _canvasOffset.dy - extraHeight);
 
-      // Shift all components down
       for (var id in _componentPositions.keys) {
         _componentPositions[id] = Offset(
           _componentPositions[id]!.dx,
@@ -128,7 +121,6 @@ class _FlowScreenState extends State<FlowScreen> {
       needsUpdate = true;
     }
 
-    // Check if we need to expand the canvas to the right or bottom
     if (maxX > _canvasSize.width - _canvasPadding) {
       double extraWidth = maxX - (_canvasSize.width - _canvasPadding);
       newCanvasSize =
@@ -479,6 +471,11 @@ class _FlowScreenState extends State<FlowScreen> {
                     tempLineEndPoint: _tempLineEndPoint,
                   ),
                   child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedComponent = null;
+                      });
+                    },
                     onSecondaryTapDown: (TapDownDetails details) {
                       Offset? canvasPosition =
                           getPosition(details.globalPosition);
