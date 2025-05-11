@@ -80,7 +80,7 @@ class _FlowScreenState extends State<FlowScreen> {
   static const double _canvasPadding = 100.0; // Padding around components
 
   Component? _clipboardComponent;
-  Set<Component> _selectedComponents = {};
+  final Set<Component> _selectedComponents = {};
 
   @override
   void initState() {
@@ -99,7 +99,7 @@ class _FlowScreenState extends State<FlowScreen> {
 
     for (var entry in _componentPositions.entries) {
       final position = entry.value;
-      final componentId = entry.key;
+      //final componentId = entry.key;
 
       const estimatedWidth = 180.0; // 160 width + 20 padding
       const estimatedHeight = 120.0;
@@ -559,9 +559,11 @@ class _FlowScreenState extends State<FlowScreen> {
                       Offset? canvasPosition =
                           getPosition(details.globalPosition);
                       if (canvasPosition != null) {
+                        print("Canvas position onTapDown: $canvasPosition");
                         setState(() {
                           _selectionBoxStart = canvasPosition;
                           _isDraggingSelectionBox = false;
+                          _selectedComponents.clear();
                         });
                       }
                     },
@@ -569,7 +571,7 @@ class _FlowScreenState extends State<FlowScreen> {
                       Offset? canvasPosition =
                           getPosition(details.globalPosition);
                       if (canvasPosition != null) {
-                        // Check if we're starting a drag on empty canvas
+                        print("Canvas position onPanStart: $canvasPosition");
                         bool isClickOnComponent = false;
 
                         for (final componentId in _componentPositions.keys) {
@@ -615,17 +617,14 @@ class _FlowScreenState extends State<FlowScreen> {
                       if (_isDraggingSelectionBox &&
                           _selectionBoxStart != null &&
                           _selectionBoxEnd != null) {
-                        // Select all components within the selection box
                         final selectionRect = Rect.fromPoints(
                             _selectionBoxStart!, _selectionBoxEnd!);
 
                         setState(() {
-                          // Clear previous selection unless Ctrl is pressed
                           if (!HardwareKeyboard.instance.isControlPressed) {
                             _selectedComponents.clear();
                           }
 
-                          // Add components that intersect with selection box
                           for (final component in _flowManager.components) {
                             final componentPos =
                                 _componentPositions[component.id];
@@ -640,28 +639,23 @@ class _FlowScreenState extends State<FlowScreen> {
                                 componentHeight,
                               );
 
-                              // Check if component rectangle intersects with selection rectangle
                               if (selectionRect.overlaps(componentRect)) {
                                 _selectedComponents.add(component);
                               }
                             }
                           }
 
-                          // Clear selection box
                           _isDraggingSelectionBox = false;
                           _selectionBoxStart = null;
                           _selectionBoxEnd = null;
                         });
                       }
                     },
-                    onTap: () {
-                      setState(() {
-                        _selectedComponents.clear();
-                      });
-                    },
-                    onSecondaryTapDown: (TapDownDetails details) {
+                    onDoubleTapDown: (TapDownDetails details) {
                       Offset? canvasPosition =
                           getPosition(details.globalPosition);
+                      print(
+                          "Canvas position onSecondaryTapDown: $canvasPosition");
                       if (canvasPosition != null) {
                         bool isClickOnComponent = false;
 
@@ -970,7 +964,6 @@ class _FlowScreenState extends State<FlowScreen> {
           _handlePasteComponent(canvasPosition);
           break;
         case 'select-all':
-          // Placeholder for select all functionality
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Select all functionality coming soon'),
@@ -979,7 +972,6 @@ class _FlowScreenState extends State<FlowScreen> {
           );
           break;
         case 'clear-canvas':
-          // Placeholder for clear canvas functionality
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Clear canvas functionality coming soon'),
