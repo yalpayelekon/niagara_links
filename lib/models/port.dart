@@ -1,4 +1,4 @@
-import 'enums.dart';
+import 'port_type.dart';
 
 class Port {
   final bool isInput;
@@ -22,19 +22,14 @@ class Port {
     required PortType type,
   }) {
     dynamic defaultValue;
-    switch (type) {
-      case PortType.boolean:
-        defaultValue = false;
-        break;
-      case PortType.number:
-        defaultValue = 0.0;
-        break;
-      case PortType.string:
-        defaultValue = '';
-        break;
-      case PortType.any:
-        defaultValue = null;
-        break;
+    if (type.type == PortType.BOOLEAN) {
+      defaultValue = false;
+    } else if (type.type == PortType.NUMERIC) {
+      defaultValue = 0.0;
+    } else if (type.type == PortType.STRING) {
+      defaultValue = '';
+    } else if (type.type == PortType.ANY) {
+      defaultValue = null;
     }
 
     return Port(
@@ -52,8 +47,8 @@ class Port {
     if (isInput == otherPort.isInput) return false;
 
     // Check type compatibility
-    return type == PortType.any ||
-        otherPort.type == PortType.any ||
-        type == otherPort.type;
+    return type.type == PortType.ANY ||
+        otherPort.type.type == PortType.ANY ||
+        type.type == otherPort.type.type;
   }
 }

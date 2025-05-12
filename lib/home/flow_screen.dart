@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:niagara_links/home/grid_painter.dart';
 import 'package:niagara_links/models/command_history.dart';
 import 'package:niagara_links/models/component.dart';
-import '../models/enums.dart';
+import '../models/component_type.dart';
 import 'manager.dart';
 import 'component_widget.dart';
 import 'connection_painter.dart';
@@ -171,41 +171,58 @@ class _FlowScreenState extends State<FlowScreen> {
   void _initializeComponents() {
     // Add some starter components of various types
 
-    final boolInput = Component(
-      id: 'Boolean Input',
-      type: ComponentType.booleanInput,
+    final boolWritable = Component(
+      id: 'Boolean Writable',
+      type: ComponentType(ComponentType.BOOLEAN_WRITABLE),
     );
-    _flowManager.addComponent(boolInput);
-    _componentPositions[boolInput.id] = const Offset(100, 100);
-    _componentKeys[boolInput.id] = GlobalKey();
+    _flowManager.addComponent(boolWritable);
+    _componentPositions[boolWritable.id] = const Offset(100, 100);
+    _componentKeys[boolWritable.id] = GlobalKey();
 
-    final num1Input = Component(
-      id: 'Number 1',
-      type: ComponentType.numberInput,
+    final num1Writable = Component(
+      id: 'Numeric 1',
+      type: ComponentType(ComponentType.NUMERIC_WRITABLE),
     );
-    _flowManager.addComponent(num1Input);
-    _componentPositions[num1Input.id] = const Offset(100, 200);
-    _componentKeys[num1Input.id] = GlobalKey();
+    _flowManager.addComponent(num1Writable);
+    _componentPositions[num1Writable.id] = const Offset(100, 200);
+    _componentKeys[num1Writable.id] = GlobalKey();
 
-    final num2Input = Component(
-      id: 'Number 2',
-      type: ComponentType.numberInput,
+    final num2Writable = Component(
+      id: 'Numeric 2',
+      type: ComponentType(ComponentType.NUMERIC_WRITABLE),
     );
-    _flowManager.addComponent(num2Input);
-    _componentPositions[num2Input.id] = const Offset(100, 300);
-    _componentKeys[num2Input.id] = GlobalKey();
+    _flowManager.addComponent(num2Writable);
+    _componentPositions[num2Writable.id] = const Offset(100, 300);
+    _componentKeys[num2Writable.id] = GlobalKey();
 
-    final stringInput = Component(
-      id: 'String Input',
-      type: ComponentType.stringInput,
+    final stringWritable = Component(
+      id: 'String Writable',
+      type: ComponentType(ComponentType.STRING_WRITABLE),
     );
-    _flowManager.addComponent(stringInput);
-    _componentPositions[stringInput.id] = const Offset(100, 400);
-    _componentKeys[stringInput.id] = GlobalKey();
+    _flowManager.addComponent(stringWritable);
+    _componentPositions[stringWritable.id] = const Offset(100, 400);
+    _componentKeys[stringWritable.id] = GlobalKey();
+
+    // Add read-only point examples
+    final boolPoint = Component(
+      id: 'Boolean Point',
+      type: ComponentType(ComponentType.BOOLEAN_POINT),
+    );
+    _flowManager.addComponent(boolPoint);
+    _componentPositions[boolPoint.id] = const Offset(100, 500);
+    _componentKeys[boolPoint.id] = GlobalKey();
+
+    final numPoint = Component(
+      id: 'Numeric Point',
+      type: ComponentType(ComponentType.NUMERIC_POINT),
+    );
+    _flowManager.addComponent(numPoint);
+    _componentPositions[numPoint.id] = const Offset(100, 600);
+    _componentKeys[numPoint.id] = GlobalKey();
 
     final andGate = Component(
       id: 'AND Gate',
-      type: ComponentType.andGate,
+      type: ComponentType(ComponentType.AND_GATE),
     );
     _flowManager.addComponent(andGate);
     _componentPositions[andGate.id] = const Offset(350, 150);
@@ -213,7 +230,7 @@ class _FlowScreenState extends State<FlowScreen> {
 
     final addComp = Component(
       id: 'Addition',
-      type: ComponentType.add,
+      type: ComponentType(ComponentType.ADD),
     );
     _flowManager.addComponent(addComp);
     _componentPositions[addComp.id] = const Offset(350, 250);
@@ -221,7 +238,7 @@ class _FlowScreenState extends State<FlowScreen> {
 
     final greaterThan = Component(
       id: 'Greater Than',
-      type: ComponentType.isGreaterThan,
+      type: ComponentType(ComponentType.IS_GREATER_THAN),
     );
     _flowManager.addComponent(greaterThan);
     _componentPositions[greaterThan.id] = const Offset(350, 350);
@@ -229,21 +246,21 @@ class _FlowScreenState extends State<FlowScreen> {
 
     final equals = Component(
       id: 'Equality',
-      type: ComponentType.isEqual,
+      type: ComponentType(ComponentType.IS_EQUAL),
     );
     _flowManager.addComponent(equals);
     _componentPositions[equals.id] = const Offset(600, 250);
     _componentKeys[equals.id] = GlobalKey();
 
-    boolInput.ports[0].value = true;
-    num1Input.ports[0].value = 5.0;
-    num2Input.ports[0].value = 3.0;
-    stringInput.ports[0].value = "Hello";
+    boolWritable.ports[0].value = true;
+    num1Writable.ports[0].value = 5.0;
+    num2Writable.ports[0].value = 3.0;
+    stringWritable.ports[0].value = "Hello";
+    boolPoint.ports[0].value = false;
+    numPoint.ports[0].value = 42.0;
 
     _flowManager.recalculateAll();
-
     _updateCanvasSize();
-
     _commandHistory.clear();
   }
 
@@ -984,39 +1001,47 @@ class _FlowScreenState extends State<FlowScreen> {
                 _buildComponentCategorySection(
                     'Logic Gates',
                     [
-                      ComponentType.andGate,
-                      ComponentType.orGate,
-                      ComponentType.xorGate,
-                      ComponentType.notGate,
+                      ComponentType.AND_GATE,
+                      ComponentType.OR_GATE,
+                      ComponentType.XOR_GATE,
+                      ComponentType.NOT_GATE,
                     ],
                     position),
                 _buildComponentCategorySection(
                     'Math Operations',
                     [
-                      ComponentType.add,
-                      ComponentType.subtract,
-                      ComponentType.multiply,
-                      ComponentType.divide,
-                      ComponentType.max,
-                      ComponentType.min,
-                      ComponentType.power,
-                      ComponentType.abs,
+                      ComponentType.ADD,
+                      ComponentType.SUBTRACT,
+                      ComponentType.MULTIPLY,
+                      ComponentType.DIVIDE,
+                      ComponentType.MAX,
+                      ComponentType.MIN,
+                      ComponentType.POWER,
+                      ComponentType.ABS,
                     ],
                     position),
                 _buildComponentCategorySection(
                     'Comparisons',
                     [
-                      ComponentType.isGreaterThan,
-                      ComponentType.isLessThan,
-                      ComponentType.isEqual,
+                      ComponentType.IS_GREATER_THAN,
+                      ComponentType.IS_LESS_THAN,
+                      ComponentType.IS_EQUAL,
                     ],
                     position),
                 _buildComponentCategorySection(
-                    'Input Components',
+                    'Writable Points',
                     [
-                      ComponentType.booleanInput,
-                      ComponentType.numberInput,
-                      ComponentType.stringInput,
+                      ComponentType.BOOLEAN_WRITABLE,
+                      ComponentType.NUMERIC_WRITABLE,
+                      ComponentType.STRING_WRITABLE,
+                    ],
+                    position),
+                _buildComponentCategorySection(
+                    'Read-Only Points',
+                    [
+                      ComponentType.BOOLEAN_POINT,
+                      ComponentType.NUMERIC_POINT,
+                      ComponentType.STRING_POINT,
                     ],
                     position),
               ],
@@ -1028,7 +1053,10 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   Widget _buildComponentCategorySection(
-      String title, List<ComponentType> types, Offset position) {
+      String title, List<String> typeStrings, Offset position) {
+    List<ComponentType> types =
+        typeStrings.map((t) => ComponentType(t)).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

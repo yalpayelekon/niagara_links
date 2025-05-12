@@ -1,117 +1,96 @@
 import 'package:flutter/material.dart';
 import '../models/component.dart';
-import '../models/enums.dart';
+import '../models/component_type.dart';
+import '../models/port_type.dart';
 
 String getComponentSymbol(Component component) {
-  switch (component.type) {
-    case ComponentType.andGate:
+  switch (component.type.type) {
+    case ComponentType.AND_GATE:
       return 'AND';
-    case ComponentType.orGate:
+    case ComponentType.OR_GATE:
       return 'OR';
-    case ComponentType.xorGate:
+    case ComponentType.XOR_GATE:
       return 'XOR';
-    case ComponentType.notGate:
+    case ComponentType.NOT_GATE:
       return 'NOT';
-    case ComponentType.add:
+    case ComponentType.ADD:
       return '+';
-    case ComponentType.subtract:
+    case ComponentType.SUBTRACT:
       return '-';
-    case ComponentType.multiply:
+    case ComponentType.MULTIPLY:
       return '×';
-    case ComponentType.divide:
+    case ComponentType.DIVIDE:
       return '÷';
-    case ComponentType.max:
+    case ComponentType.MAX:
       return 'MAX';
-    case ComponentType.min:
+    case ComponentType.MIN:
       return 'MIN';
-    case ComponentType.power:
+    case ComponentType.POWER:
       return 'POW';
-    case ComponentType.abs:
+    case ComponentType.ABS:
       return '|x|';
-    case ComponentType.isGreaterThan:
+    case ComponentType.IS_GREATER_THAN:
       return '>';
-    case ComponentType.isLessThan:
+    case ComponentType.IS_LESS_THAN:
       return '<';
-    case ComponentType.isEqual:
+    case ComponentType.IS_EQUAL:
       return '=';
-    case ComponentType.booleanInput:
-      return 'IN';
-    case ComponentType.numberInput:
-      return '#';
-    case ComponentType.stringInput:
-      return 'abc';
+    case ComponentType.BOOLEAN_WRITABLE:
+      return 'BW';
+    case ComponentType.NUMERIC_WRITABLE:
+      return 'NW';
+    case ComponentType.STRING_WRITABLE:
+      return 'SW';
+    case ComponentType.BOOLEAN_POINT:
+      return 'BP';
+    case ComponentType.NUMERIC_POINT:
+      return 'NP';
+    case ComponentType.STRING_POINT:
+      return 'SP';
+    default:
+      return '?';
   }
 }
 
 Color getComponentColor(Component component) {
-  switch (component.type) {
-    // Logic gates - blue family
-    case ComponentType.andGate:
-    case ComponentType.orGate:
-    case ComponentType.xorGate:
-    case ComponentType.notGate:
-      return Colors.lightBlue[100]!;
-
-    // Math operations - green family
-    case ComponentType.add:
-    case ComponentType.subtract:
-    case ComponentType.multiply:
-    case ComponentType.divide:
-    case ComponentType.max:
-    case ComponentType.min:
-    case ComponentType.power:
-    case ComponentType.abs:
-      return Colors.lightGreen[100]!;
-
-    // Comparison operations - purple family
-    case ComponentType.isGreaterThan:
-    case ComponentType.isLessThan:
-    case ComponentType.isEqual:
-      return Colors.purpleAccent[100]!;
-
-    // Input components
-    case ComponentType.booleanInput:
-      return Colors.indigo[100]!;
-    case ComponentType.numberInput:
-      return Colors.teal[100]!;
-    case ComponentType.stringInput:
-      return Colors.orange[100]!;
+  if (component.type.isLogicGate) {
+    return Colors.lightBlue[100]!;
+  } else if (component.type.isMathOperation) {
+    return Colors.lightGreen[100]!;
+  } else if (component.type.isComparisonOperation) {
+    return Colors.purpleAccent[100]!;
+  } else if (component.type.type == ComponentType.BOOLEAN_WRITABLE ||
+      component.type.type == ComponentType.BOOLEAN_POINT) {
+    return Colors.indigo[100]!;
+  } else if (component.type.type == ComponentType.NUMERIC_WRITABLE ||
+      component.type.type == ComponentType.NUMERIC_POINT) {
+    return Colors.teal[100]!;
+  } else if (component.type.type == ComponentType.STRING_WRITABLE ||
+      component.type.type == ComponentType.STRING_POINT) {
+    return Colors.orange[100]!;
+  } else {
+    return Colors.grey[100]!;
   }
 }
 
 Color getComponentTextColor(Component component) {
-  switch (component.type) {
-    // Logic gates - blue family
-    case ComponentType.andGate:
-    case ComponentType.orGate:
-    case ComponentType.xorGate:
-    case ComponentType.notGate:
-      return Colors.blue[800]!;
-
-    // Math operations - green family
-    case ComponentType.add:
-    case ComponentType.subtract:
-    case ComponentType.multiply:
-    case ComponentType.divide:
-    case ComponentType.max:
-    case ComponentType.min:
-    case ComponentType.power:
-    case ComponentType.abs:
-      return Colors.green[800]!;
-
-    // Comparison operations - purple family
-    case ComponentType.isGreaterThan:
-    case ComponentType.isLessThan:
-    case ComponentType.isEqual:
-      return Colors.purple[800]!;
-
-    // Input components
-    case ComponentType.booleanInput:
-      return Colors.indigo[800]!;
-    case ComponentType.numberInput:
-      return Colors.teal[800]!;
-    case ComponentType.stringInput:
-      return Colors.orange[800]!;
+  if (component.type.isLogicGate) {
+    return Colors.blue[800]!;
+  } else if (component.type.isMathOperation) {
+    return Colors.green[800]!;
+  } else if (component.type.isComparisonOperation) {
+    return Colors.purple[800]!;
+  } else if (component.type.type == ComponentType.BOOLEAN_WRITABLE ||
+      component.type.type == ComponentType.BOOLEAN_POINT) {
+    return Colors.indigo[800]!;
+  } else if (component.type.type == ComponentType.NUMERIC_WRITABLE ||
+      component.type.type == ComponentType.NUMERIC_POINT) {
+    return Colors.teal[800]!;
+  } else if (component.type.type == ComponentType.STRING_WRITABLE ||
+      component.type.type == ComponentType.STRING_POINT) {
+    return Colors.orange[800]!;
+  } else {
+    return Colors.grey[800]!;
   }
 }
 
@@ -119,23 +98,26 @@ Widget buildTypeIndicator(PortType type) {
   IconData icon;
   Color color;
 
-  switch (type) {
-    case PortType.boolean:
+  switch (type.type) {
+    case PortType.BOOLEAN:
       icon = Icons.toggle_on_outlined;
       color = Colors.indigo;
       break;
-    case PortType.number:
+    case PortType.NUMERIC:
       icon = Icons.numbers;
       color = Colors.green;
       break;
-    case PortType.string:
+    case PortType.STRING:
       icon = Icons.text_fields;
       color = Colors.orange;
       break;
-    case PortType.any:
+    case PortType.ANY:
       icon = Icons.all_inclusive;
       color = Colors.purple;
       break;
+    default:
+      icon = Icons.help_outline;
+      color = Colors.grey;
   }
 
   return Icon(
@@ -146,145 +128,175 @@ Widget buildTypeIndicator(PortType type) {
 }
 
 IconData getIconForComponentType(ComponentType type) {
-  switch (type) {
-    case ComponentType.andGate:
+  switch (type.type) {
+    case ComponentType.AND_GATE:
       return Icons.call_merge;
-    case ComponentType.orGate:
+    case ComponentType.OR_GATE:
       return Icons.call_split;
-    case ComponentType.xorGate:
+    case ComponentType.XOR_GATE:
       return Icons.shuffle;
-    case ComponentType.notGate:
+    case ComponentType.NOT_GATE:
       return Icons.block;
 
-    case ComponentType.add:
+    case ComponentType.ADD:
       return Icons.add;
-    case ComponentType.subtract:
+    case ComponentType.SUBTRACT:
       return Icons.remove;
-    case ComponentType.multiply:
+    case ComponentType.MULTIPLY:
       return Icons.close;
-    case ComponentType.divide:
+    case ComponentType.DIVIDE:
       return Icons.expand;
-    case ComponentType.max:
+    case ComponentType.MAX:
       return Icons.arrow_upward;
-    case ComponentType.min:
+    case ComponentType.MIN:
       return Icons.arrow_downward;
-    case ComponentType.power:
+    case ComponentType.POWER:
       return Icons.upload;
-    case ComponentType.abs:
+    case ComponentType.ABS:
       return Icons.straighten;
 
-    case ComponentType.isGreaterThan:
+    case ComponentType.IS_GREATER_THAN:
       return Icons.navigate_next;
-    case ComponentType.isLessThan:
+    case ComponentType.IS_LESS_THAN:
       return Icons.navigate_before;
-    case ComponentType.isEqual:
+    case ComponentType.IS_EQUAL:
       return Icons.drag_handle;
 
-    case ComponentType.booleanInput:
+    case ComponentType.BOOLEAN_WRITABLE:
       return Icons.toggle_on;
-    case ComponentType.numberInput:
+    case ComponentType.NUMERIC_WRITABLE:
       return Icons.numbers;
-    case ComponentType.stringInput:
+    case ComponentType.STRING_WRITABLE:
       return Icons.text_fields;
+
+    case ComponentType.BOOLEAN_POINT:
+      return Icons.toggle_off;
+    case ComponentType.NUMERIC_POINT:
+      return Icons.format_list_numbered;
+    case ComponentType.STRING_POINT:
+      return Icons.text_snippet;
+
+    default:
+      return Icons.help_outline;
   }
 }
 
 String getNameForComponentType(ComponentType type) {
-  switch (type) {
-    case ComponentType.andGate:
+  switch (type.type) {
+    case ComponentType.AND_GATE:
       return 'AND Gate';
-    case ComponentType.orGate:
+    case ComponentType.OR_GATE:
       return 'OR Gate';
-    case ComponentType.xorGate:
+    case ComponentType.XOR_GATE:
       return 'XOR Gate';
-    case ComponentType.notGate:
+    case ComponentType.NOT_GATE:
       return 'NOT Gate';
 
-    case ComponentType.add:
+    case ComponentType.ADD:
       return 'Add';
-    case ComponentType.subtract:
+    case ComponentType.SUBTRACT:
       return 'Subtract';
-    case ComponentType.multiply:
+    case ComponentType.MULTIPLY:
       return 'Multiply';
-    case ComponentType.divide:
+    case ComponentType.DIVIDE:
       return 'Divide';
-    case ComponentType.max:
+    case ComponentType.MAX:
       return 'Maximum';
-    case ComponentType.min:
+    case ComponentType.MIN:
       return 'Minimum';
-    case ComponentType.power:
+    case ComponentType.POWER:
       return 'Power';
-    case ComponentType.abs:
+    case ComponentType.ABS:
       return 'Absolute Value';
 
-    case ComponentType.isGreaterThan:
+    case ComponentType.IS_GREATER_THAN:
       return 'Greater Than';
-    case ComponentType.isLessThan:
+    case ComponentType.IS_LESS_THAN:
       return 'Less Than';
-    case ComponentType.isEqual:
+    case ComponentType.IS_EQUAL:
       return 'Equals';
 
-    case ComponentType.booleanInput:
-      return 'Boolean';
-    case ComponentType.numberInput:
-      return 'Number';
-    case ComponentType.stringInput:
-      return 'String';
+    case ComponentType.BOOLEAN_WRITABLE:
+      return 'Boolean Writable';
+    case ComponentType.NUMERIC_WRITABLE:
+      return 'Numeric Writable';
+    case ComponentType.STRING_WRITABLE:
+      return 'String Writable';
+
+    case ComponentType.BOOLEAN_POINT:
+      return 'Boolean Point';
+    case ComponentType.NUMERIC_POINT:
+      return 'Numeric Point';
+    case ComponentType.STRING_POINT:
+      return 'String Point';
+
+    default:
+      return 'Unknown Component';
   }
 }
 
 List<ComponentType> getCompatibleTypes(ComponentType currentType) {
+  List<String> compatibleTypeStrings = [];
+
   // Group types by their port structure for compatibility
-  switch (currentType) {
-    // 2-input, 1-output boolean components
-    case ComponentType.andGate:
-    case ComponentType.orGate:
-    case ComponentType.xorGate:
-      return [
-        ComponentType.andGate,
-        ComponentType.orGate,
-        ComponentType.xorGate,
-      ];
-
-    // 1-input, 1-output boolean components
-    case ComponentType.notGate:
-      return [ComponentType.notGate];
-
-    // 2-input, 1-output math components
-    case ComponentType.add:
-    case ComponentType.subtract:
-    case ComponentType.multiply:
-    case ComponentType.divide:
-    case ComponentType.max:
-    case ComponentType.min:
-    case ComponentType.power:
-      return [
-        ComponentType.add,
-        ComponentType.subtract,
-        ComponentType.multiply,
-        ComponentType.divide,
-      ];
-
-    // 2-input, 1-output comparison components
-    case ComponentType.isGreaterThan:
-    case ComponentType.isLessThan:
-      return [
-        ComponentType.isGreaterThan,
-        ComponentType.isLessThan,
-      ];
-    case ComponentType.abs:
-      return [ComponentType.abs];
-
-    // Comparison with any type
-    case ComponentType.isEqual:
-      return [ComponentType.isEqual];
-
-    // Single input components (by type)
-    case ComponentType.booleanInput:
-      return [ComponentType.booleanInput];
-    case ComponentType.numberInput:
-      return [ComponentType.numberInput];
-    case ComponentType.stringInput:
-      return [ComponentType.stringInput];
+  if (currentType.type == ComponentType.AND_GATE ||
+      currentType.type == ComponentType.OR_GATE ||
+      currentType.type == ComponentType.XOR_GATE) {
+    compatibleTypeStrings = [
+      ComponentType.AND_GATE,
+      ComponentType.OR_GATE,
+      ComponentType.XOR_GATE,
+    ];
+  } else if (currentType.type == ComponentType.NOT_GATE) {
+    compatibleTypeStrings = [ComponentType.NOT_GATE];
+  } else if (currentType.type == ComponentType.ADD ||
+      currentType.type == ComponentType.SUBTRACT ||
+      currentType.type == ComponentType.MULTIPLY ||
+      currentType.type == ComponentType.DIVIDE ||
+      currentType.type == ComponentType.MAX ||
+      currentType.type == ComponentType.MIN ||
+      currentType.type == ComponentType.POWER) {
+    compatibleTypeStrings = [
+      ComponentType.ADD,
+      ComponentType.SUBTRACT,
+      ComponentType.MULTIPLY,
+      ComponentType.DIVIDE,
+      ComponentType.MAX,
+      ComponentType.MIN,
+      ComponentType.POWER,
+    ];
+  } else if (currentType.type == ComponentType.IS_GREATER_THAN ||
+      currentType.type == ComponentType.IS_LESS_THAN) {
+    compatibleTypeStrings = [
+      ComponentType.IS_GREATER_THAN,
+      ComponentType.IS_LESS_THAN,
+    ];
+  } else if (currentType.type == ComponentType.ABS) {
+    compatibleTypeStrings = [ComponentType.ABS];
+  } else if (currentType.type == ComponentType.IS_EQUAL) {
+    compatibleTypeStrings = [ComponentType.IS_EQUAL];
+  } else if (currentType.type == ComponentType.BOOLEAN_WRITABLE ||
+      currentType.type == ComponentType.BOOLEAN_POINT) {
+    compatibleTypeStrings = [
+      ComponentType.BOOLEAN_WRITABLE,
+      ComponentType.BOOLEAN_POINT,
+    ];
+  } else if (currentType.type == ComponentType.NUMERIC_WRITABLE ||
+      currentType.type == ComponentType.NUMERIC_POINT) {
+    compatibleTypeStrings = [
+      ComponentType.NUMERIC_WRITABLE,
+      ComponentType.NUMERIC_POINT,
+    ];
+  } else if (currentType.type == ComponentType.STRING_WRITABLE ||
+      currentType.type == ComponentType.STRING_POINT) {
+    compatibleTypeStrings = [
+      ComponentType.STRING_WRITABLE,
+      ComponentType.STRING_POINT,
+    ];
   }
+
+  // Convert string types to ComponentType objects
+  return compatibleTypeStrings
+      .map((typeString) => ComponentType(typeString))
+      .toList();
 }

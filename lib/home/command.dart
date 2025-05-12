@@ -2,8 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:niagara_links/models/command.dart';
 import 'package:niagara_links/models/component.dart';
 import 'package:niagara_links/models/connection.dart';
-import 'package:niagara_links/models/enums.dart';
 
+import '../models/component_type.dart';
+import '../models/port_type.dart';
 import 'manager.dart';
 
 class AddComponentCommand extends Command {
@@ -271,15 +272,16 @@ class EditComponentCommand extends Command {
           // Try to convert value if needed
           dynamic oldValue = oldValues[port.index];
           if (oldValue != null) {
-            if (port.type == PortType.boolean && oldValue is! bool) {
+            if (port.type.type == PortType.BOOLEAN && oldValue is! bool) {
               port.value = oldValue != 0 && oldValue != '';
-            } else if (port.type == PortType.number && oldValue is! num) {
+            } else if (port.type.type == PortType.NUMERIC && oldValue is! num) {
               if (oldValue is bool) {
                 port.value = oldValue ? 1.0 : 0.0;
               } else if (oldValue is String) {
                 port.value = double.tryParse(oldValue) ?? 0.0;
               }
-            } else if (port.type == PortType.string && oldValue is! String) {
+            } else if (port.type.type == PortType.STRING &&
+                oldValue is! String) {
               port.value = oldValue.toString();
             } else {
               port.value = oldValue;
@@ -361,21 +363,20 @@ class EditComponentCommand extends Command {
         flowManager.components[index] = originalTypeComponent;
       }
 
-      // Copy over saved values where possible
       for (var port in originalTypeComponent.ports) {
         if (port.isInput && oldValues.containsKey(port.index)) {
-          // Try to convert value if needed
           dynamic oldValue = oldValues[port.index];
           if (oldValue != null) {
-            if (port.type == PortType.boolean && oldValue is! bool) {
+            if (port.type.type == PortType.BOOLEAN && oldValue is! bool) {
               port.value = oldValue != 0 && oldValue != '';
-            } else if (port.type == PortType.number && oldValue is! num) {
+            } else if (port.type.type == PortType.NUMERIC && oldValue is! num) {
               if (oldValue is bool) {
                 port.value = oldValue ? 1.0 : 0.0;
               } else if (oldValue is String) {
                 port.value = double.tryParse(oldValue) ?? 0.0;
               }
-            } else if (port.type == PortType.string && oldValue is! String) {
+            } else if (port.type.type == PortType.STRING &&
+                oldValue is! String) {
               port.value = oldValue.toString();
             } else {
               port.value = oldValue;

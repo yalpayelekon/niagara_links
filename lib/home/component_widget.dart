@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:niagara_links/models/component.dart';
-import 'package:niagara_links/models/enums.dart';
 import 'package:niagara_links/models/port.dart';
 
+import '../models/component_type.dart';
+import '../models/port_type.dart';
 import 'utils.dart';
 
 class PortDragInfo {
@@ -220,14 +221,16 @@ class _ComponentWidgetState extends State<ComponentWidget> {
   }
 
   Widget _buildValueDisplay(Port port) {
-    // If this is an input component or a port that can be edited directly
-    bool canEdit = widget.component.type == ComponentType.booleanInput ||
-        widget.component.type == ComponentType.numberInput ||
-        widget.component.type == ComponentType.stringInput ||
-        (port.isInput && widget.component.inputConnections[port.index] == null);
+    Component component = widget.component;
+    port = port;
 
-    switch (port.type) {
-      case PortType.boolean:
+    bool canEdit = component.type.type == ComponentType.BOOLEAN_WRITABLE ||
+        component.type.type == ComponentType.NUMERIC_WRITABLE ||
+        component.type.type == ComponentType.STRING_WRITABLE ||
+        (port.isInput && component.inputConnections[port.index] == null);
+
+    switch (port.type.type) {
+      case PortType.BOOLEAN:
         return GestureDetector(
           onTap: canEdit
               ? () {
@@ -282,7 +285,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
           ),
         );
 
-      case PortType.number:
+      case PortType.NUMERIC:
         return SizedBox(
           width: 60,
           height: 24,
@@ -314,7 +317,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
           ),
         );
 
-      case PortType.string:
+      case PortType.STRING:
         return SizedBox(
           width: 60,
           height: 24,
@@ -341,8 +344,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
           ),
         );
 
-      case PortType.any:
-        // For "any" type, display based on the actual value type
+      case PortType.ANY:
         if (port.value is bool) {
           return Text(
             port.value as bool ? 'true' : 'false',
@@ -365,5 +367,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
           );
         }
     }
+    return const SizedBox();
   }
 }

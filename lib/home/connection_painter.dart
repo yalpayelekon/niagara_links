@@ -2,8 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:niagara_links/models/component.dart';
 import 'package:niagara_links/models/connection.dart';
-import 'package:niagara_links/models/enums.dart';
 import 'package:niagara_links/models/port.dart';
+import '../models/port_type.dart';
 import 'component_widget.dart';
 import 'manager.dart';
 
@@ -210,27 +210,27 @@ class ConnectionPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     // Get color based on port type
-    Color borderColor;
-    String displayValue;
+    Color? borderColor;
+    String? displayValue;
 
-    switch (port.type) {
-      case PortType.boolean:
+    switch (port.type.type) {
+      case PortType.BOOLEAN:
         borderColor = (port.value as bool)
             ? Colors.green.withOpacity(0.6)
             : Colors.red.withOpacity(0.6);
         displayValue = (port.value as bool) ? 'T' : 'F';
         break;
-      case PortType.number:
+      case PortType.NUMERIC:
         borderColor = Colors.teal.withOpacity(0.6);
         num value = port.value as num;
         displayValue = value.toStringAsFixed(1);
         break;
-      case PortType.string:
+      case PortType.STRING:
         borderColor = Colors.orange.withOpacity(0.6);
         displayValue =
             '"${(port.value as String).length > 3 ? '${(port.value as String).substring(0, 3)}...' : port.value as String}"';
         break;
-      case PortType.any:
+      case PortType.ANY:
         borderColor = Colors.purple.withOpacity(0.6);
         if (port.value == null) {
           displayValue = 'null';
@@ -245,7 +245,7 @@ class ConnectionPainter extends CustomPainter {
     }
 
     final Paint borderPaint = Paint()
-      ..color = borderColor
+      ..color = borderColor!
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 

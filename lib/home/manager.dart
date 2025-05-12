@@ -1,6 +1,7 @@
 import '../models/component.dart';
 import '../models/connection.dart';
-import '../models/enums.dart';
+import '../models/component_type.dart';
+import '../models/port_type.dart';
 import '../models/port.dart';
 
 class FlowManager {
@@ -170,19 +171,14 @@ class FlowManager {
             component.ports[portIndex].isInput) {
           // Reset to default value based on type
           Port port = component.ports[portIndex];
-          switch (port.type) {
-            case PortType.boolean:
-              port.value = false;
-              break;
-            case PortType.number:
-              port.value = 0.0;
-              break;
-            case PortType.string:
-              port.value = '';
-              break;
-            case PortType.any:
-              port.value = null;
-              break;
+          if (port.type.type == PortType.BOOLEAN) {
+            port.value = false;
+          } else if (port.type.type == PortType.NUMERIC) {
+            port.value = 0.0;
+          } else if (port.type.type == PortType.STRING) {
+            port.value = '';
+          } else if (port.type.type == PortType.ANY) {
+            port.value = null;
           }
         }
       }
@@ -191,10 +187,13 @@ class FlowManager {
     // Calculate components without input connections first
     for (var component in components) {
       bool isInputComponent = [
-        ComponentType.booleanInput,
-        ComponentType.numberInput,
-        ComponentType.stringInput,
-      ].contains(component.type);
+        ComponentType.BOOLEAN_WRITABLE,
+        ComponentType.NUMERIC_WRITABLE,
+        ComponentType.STRING_WRITABLE,
+        ComponentType.BOOLEAN_POINT,
+        ComponentType.NUMERIC_POINT,
+        ComponentType.STRING_POINT,
+      ].contains(component.type.type);
 
       if (isInputComponent || component.inputConnections.isEmpty) {
         component.calculate();
