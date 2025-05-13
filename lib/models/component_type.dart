@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class ComponentType {
   // Logic gates
   static const String AND_GATE = "AND_GATE";

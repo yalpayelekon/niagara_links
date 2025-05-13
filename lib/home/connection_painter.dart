@@ -462,8 +462,9 @@ class ConnectionPainter extends CustomPainter {
     if (value == null) return "null";
     if (value is bool) return value ? "T" : "F";
     if (value is num) return value.toStringAsFixed(1);
-    if (value is String)
+    if (value is String) {
       return '"${value.length > 3 ? '${value.substring(0, 3)}...' : value}"';
+    }
     return value.toString();
   }
 

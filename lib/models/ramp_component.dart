@@ -17,9 +17,8 @@ class RampComponent extends Component {
   bool _running = false;
 
   RampComponent({
-    required String id,
+    required super.id,
   }) : super(
-          id: id,
           type: ComponentType(RAMP),
         ) {
     _setupPorts();
@@ -134,7 +133,6 @@ class RampComponent extends Component {
     calculate();
   }
 
-  @override
   void dispose() {
     stopRamping();
   }

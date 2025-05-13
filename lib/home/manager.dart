@@ -207,7 +207,7 @@ class FlowManager {
               updatePortValue(
                   connection.toComponentId, connection.toPortIndex, result);
             } else if (targetSlot is Topic) {
-              (targetSlot as Topic).fire(result);
+              targetSlot.fire(result);
               propagateTopicEvent(targetComponent, connection.toPortIndex);
             }
           }
@@ -243,7 +243,6 @@ class FlowManager {
         targetSlot.value = valueToPropagate;
         targetComponent.calculate();
 
-        // Propagate from the target component's output properties
         for (var property
             in targetComponent.properties.where((p) => !p.isInput)) {
           propagatePropertyValue(targetComponent, property.index);
@@ -258,9 +257,7 @@ class FlowManager {
       else if (targetSlot is ActionSlot) {
         dynamic result = targetSlot.execute(parameter: valueToPropagate);
 
-        // Propagate the action result to any connected slots
         if (result != null) {
-          // Find connections from this action
           for (var actionConnection in connections.where((conn) => conn
               .isFromComponent(targetComponent.id, connection.toPortIndex))) {
             Component? actionTargetComponent =
@@ -273,7 +270,7 @@ class FlowManager {
             if (actionTargetSlot is ActionSlot) {
               actionTargetSlot.execute(parameter: result);
             } else if (actionTargetSlot is Topic) {
-              (actionTargetSlot as Topic).fire(result);
+              actionTargetSlot.fire(result);
               propagateTopicEvent(
                   actionTargetComponent, actionConnection.toPortIndex);
             }
@@ -323,7 +320,7 @@ class FlowManager {
             if (actionTargetSlot is ActionSlot) {
               actionTargetSlot.execute(parameter: result);
             } else if (actionTargetSlot is Topic) {
-              (actionTargetSlot as Topic).fire(result);
+              actionTargetSlot.fire(result);
               propagateTopicEvent(
                   actionTargetComponent, actionConnection.toPortIndex);
             }
@@ -332,7 +329,7 @@ class FlowManager {
       }
       // Topic to Topic
       else if (targetSlot is Topic) {
-        (targetSlot as Topic).fire(eventToPropagate);
+        (targetSlot).fire(eventToPropagate);
         propagateTopicEvent(targetComponent, connection.toPortIndex);
       }
     }

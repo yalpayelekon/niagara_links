@@ -119,26 +119,26 @@ class CreateConnectionCommand extends Command {
 class UpdatePortValueCommand extends Command {
   final FlowManager flowManager;
   final String componentId;
-  final int portIndex;
+  final int slotIndex;
   final dynamic newValue;
   final dynamic oldValue;
 
   UpdatePortValueCommand(
     this.flowManager,
     this.componentId,
-    this.portIndex,
+    this.slotIndex,
     this.newValue,
     this.oldValue,
   );
 
   @override
   void execute() {
-    flowManager.updatePortValue(componentId, portIndex, newValue);
+    flowManager.updatePortValue(componentId, slotIndex, newValue);
   }
 
   @override
   void undo() {
-    flowManager.updatePortValue(componentId, portIndex, oldValue);
+    flowManager.updatePortValue(componentId, slotIndex, oldValue);
   }
 
   @override

@@ -6,6 +6,10 @@ import 'package:niagara_links/home/grid_painter.dart';
 import 'package:niagara_links/models/command_history.dart';
 import 'package:niagara_links/models/component.dart';
 import '../models/component_type.dart';
+import '../models/point_components.dart';
+import '../models/port.dart';
+import '../models/ramp_component.dart';
+import '../models/rectangle.dart';
 import 'manager.dart';
 import 'component_widget.dart';
 import 'connection_painter.dart';
@@ -251,7 +255,30 @@ class _FlowScreenState extends State<FlowScreen> {
     if (clickPosition != null) {
       newPosition = clickPosition;
     } else {
-      // ... existing positioning code ...
+      final RenderBox? viewerChildRenderBox =
+          _interactiveViewerChildKey.currentContext?.findRenderObject()
+              as RenderBox?;
+
+      newPosition = Offset(_canvasSize.width / 2, _canvasSize.height / 2);
+
+      if (viewerChildRenderBox != null) {
+        final viewportSize = viewerChildRenderBox.size;
+        final viewportCenter =
+            Offset(viewportSize.width / 2, viewportSize.height / 2);
+
+        final matrix = _transformationController.value;
+        final inverseMatrix = Matrix4.inverted(matrix);
+        final transformedCenter =
+            MatrixUtils.transformPoint(inverseMatrix, viewportCenter);
+
+        final random = Random();
+        final randomOffset = Offset(
+          (random.nextDouble() * 200) - 100,
+          (random.nextDouble() * 200) - 100,
+        );
+
+        newPosition = transformedCenter + randomOffset;
+      }
     }
 
     final newKey = GlobalKey();
@@ -275,23 +302,33 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _handleValueChanged(
-      String componentId, int portIndex, dynamic newValue) {
+      String componentId, int slotIndex, dynamic newValue) {
     Component? component = _flowManager.findComponentById(componentId);
-    if (component != null && portIndex < component.ports.length) {
-      dynamic oldValue = component.ports[portIndex].value;
+    if (component != null) {
+      // Get the slot by index
+      Slot? slot = component.getSlotByIndex(slotIndex);
 
-      // Only create a command if the value actually changed
-      if (oldValue != newValue) {
-        setState(() {
-          final command = UpdatePortValueCommand(
-            _flowManager,
-            componentId,
-            portIndex,
-            newValue,
-            oldValue,
-          );
-          _commandHistory.execute(command);
-        });
+      if (slot != null) {
+        dynamic oldValue;
+        if (slot is Property) {
+          oldValue = slot.value;
+        } else if (slot is Action) {
+          ActionSlot action = slot as ActionSlot;
+          oldValue = action.parameter;
+        }
+
+        if (oldValue != newValue) {
+          setState(() {
+            final command = UpdatePortValueCommand(
+              _flowManager,
+              componentId,
+              slotIndex,
+              newValue,
+              oldValue,
+            );
+            _commandHistory.execute(command);
+          });
+        }
       }
     }
   }
@@ -872,8 +909,8 @@ class _FlowScreenState extends State<FlowScreen> {
                                           _componentPositions[component.id] ??
                                               Offset.zero,
                                       onValueChanged: _handleValueChanged,
-                                      onPortDragStarted: _handlePortDragStarted,
-                                      onPortDragAccepted:
+                                      onSlotDragStarted: _handlePortDragStarted,
+                                      onSlotDragAccepted:
                                           _handlePortDragAccepted,
                                     ),
                                   ),
@@ -1119,72 +1156,6 @@ class _FlowScreenState extends State<FlowScreen> {
     );
   }
 
-  void _addNewComponent(ComponentType type, {Offset? clickPosition}) {
-    String baseName = getNameForComponentType(type);
-    int counter = 1;
-    String newName = '$baseName $counter';
-
-    while (_flowManager.components.any((comp) => comp.id == newName)) {
-      counter++;
-      newName = '$baseName $counter';
-    }
-
-    final newComponent = Component(
-      id: newName,
-      type: type,
-    );
-
-    Offset newPosition;
-
-    if (clickPosition != null) {
-      newPosition = clickPosition;
-    } else {
-      final RenderBox? viewerChildRenderBox =
-          _interactiveViewerChildKey.currentContext?.findRenderObject()
-              as RenderBox?;
-
-      newPosition = Offset(_canvasSize.width / 2, _canvasSize.height / 2);
-
-      if (viewerChildRenderBox != null) {
-        final viewportSize = viewerChildRenderBox.size;
-        final viewportCenter =
-            Offset(viewportSize.width / 2, viewportSize.height / 2);
-
-        final matrix = _transformationController.value;
-        final inverseMatrix = Matrix4.inverted(matrix);
-        final transformedCenter =
-            MatrixUtils.transformPoint(inverseMatrix, viewportCenter);
-
-        final random = Random();
-        final randomOffset = Offset(
-          (random.nextDouble() * 200) - 100,
-          (random.nextDouble() * 200) - 100,
-        );
-
-        newPosition = transformedCenter + randomOffset;
-      }
-    }
-
-    final newKey = GlobalKey();
-
-    Map<String, dynamic> state = {
-      'position': newPosition,
-      'key': newKey,
-      'positions': _componentPositions,
-      'keys': _componentKeys,
-    };
-
-    setState(() {
-      final command = AddComponentCommand(_flowManager, newComponent, state);
-      _commandHistory.execute(command);
-
-      _componentPositions[newComponent.id] = newPosition;
-      _componentKeys[newComponent.id] = newKey;
-
-      _updateCanvasSize();
-    });
-  }
-
   void _showContextMenu(
       BuildContext context, Offset position, Component component) {
     final RenderBox overlay =
@@ -1252,83 +1223,50 @@ class _FlowScreenState extends State<FlowScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(builder: (context, setState) {
-        return AlertDialog(
-          title: const Text('Edit Component'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Component Name'),
-                autofocus: true,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<ComponentType>(
-                value: selectedType,
-                decoration: const InputDecoration(
-                  labelText: 'Component Type',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Edit Component'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration:
+                      const InputDecoration(labelText: 'Component Name'),
+                  autofocus: true,
                 ),
-                items: getCompatibleTypes(component.type).map((type) {
-                  return DropdownMenuItem<ComponentType>(
-                    value: type,
-                    child: Text(getNameForComponentType(type)),
-                  );
-                }).toList(),
-                onChanged: (ComponentType? value) {
-                  if (value != null) {
-                    setState(() {
-                      selectedType = value;
-                    });
-                  }
-                },
+                const SizedBox(height: 16),
+                DropdownButtonFormField<ComponentType>(
+                  value: selectedType,
+                  decoration: const InputDecoration(
+                    labelText: 'Component Type',
+                  ),
+                  items: getCompatibleTypes(component.type).map((type) {
+                    return DropdownMenuItem<ComponentType>(
+                      value: type,
+                      child: Text(getNameForComponentType(type)),
+                    );
+                  }).toList(),
+                  onChanged: (ComponentType? value) {
+                    if (value != null) {
+                      setState(() {
+                        selectedType = value;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final oldId = component.id;
-                String newId = nameController.text.trim();
-
-                if (newId.isEmpty) {
-                  newId = oldId;
-                } else if (_flowManager.components
-                    .any((comp) => comp.id == newId && comp.id != oldId)) {
-                  int counter = 1;
-                  String baseName = newId;
-                  while (_flowManager.components
-                      .any((comp) => comp.id == newId && comp.id != oldId)) {
-                    counter++;
-                    newId = '$baseName $counter';
-                  }
-                }
-
-                if (oldId != newId || component.type != selectedType) {
-                  this.setState(() {
-                    final command = EditComponentCommand(
-                      flowManager: _flowManager,
-                      oldId: oldId,
-                      newId: newId,
-                      oldType: component.type,
-                      newType: selectedType,
-                      componentPositions: _componentPositions,
-                      componentKeys: _componentKeys,
-                    );
-                    _commandHistory.execute(command);
-                  });
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      }),
+          );
+        },
+      ),
     );
   }
 
@@ -1378,18 +1316,22 @@ class _FlowScreenState extends State<FlowScreen> {
       newName = '${_clipboardComponent!.id} (Copy $counter)';
     }
 
-    final newComponent = Component(
-      id: newName,
-      type: _clipboardComponent!.type,
-    );
+    // Create a new component of the same type using the factory method
+    Component newComponent = _flowManager.createComponentByType(
+        newName, _clipboardComponent!.type.type);
 
-    // Copy values from ports that don't have input connections
-    for (int i = 0;
-        i < _clipboardComponent!.ports.length && i < newComponent.ports.length;
-        i++) {
-      if (_clipboardComponent!.ports[i].isInput &&
-          _clipboardComponent!.inputConnections[i] == null) {
-        newComponent.ports[i].value = _clipboardComponent!.ports[i].value;
+    // Copy values from properties that don't have input connections
+    for (var sourceProperty in _clipboardComponent!.properties) {
+      if (sourceProperty.isInput &&
+          !_clipboardComponent!.inputConnections
+              .containsKey(sourceProperty.index)) {
+        // Find the matching property in the new component
+        for (var targetProperty in newComponent.properties) {
+          if (targetProperty.index == sourceProperty.index) {
+            targetProperty.value = sourceProperty.value;
+            break;
+          }
+        }
       }
     }
 
