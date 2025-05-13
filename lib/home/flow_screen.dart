@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:niagara_links/home/grid_painter.dart';
+import 'package:niagara_links/home/resize_component_command.dart';
 import 'package:niagara_links/models/command_history.dart';
 import 'package:niagara_links/models/component.dart';
 import '../models/component_type.dart';
@@ -79,7 +80,7 @@ class _FlowScreenState extends State<FlowScreen> {
   final TransformationController _transformationController =
       TransformationController();
   final GlobalKey _interactiveViewerChildKey = GlobalKey();
-
+  final Map<String, double> _componentWidths = {};
   Size _canvasSize = const Size(2000, 2000); // Initial canvas size
   Offset _canvasOffset = Offset.zero; // Canvas position within the view
   static const double _canvasPadding = 100.0; // Padding around components
@@ -173,59 +174,29 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _initializeComponents() {
-    final rectangle = RectangleComponent(
-      id: 'Rectangle',
-    );
-    _flowManager.addComponent(rectangle);
-    _componentPositions[rectangle.id] = const Offset(350, 200);
-    _componentKeys[rectangle.id] = GlobalKey();
-
-    final ramp1 = RampComponent(
-      id: 'Ramp 1',
-    );
-    _flowManager.addComponent(ramp1);
-    _componentPositions[ramp1.id] = const Offset(100, 100);
-    _componentKeys[ramp1.id] = GlobalKey();
-
-    final ramp2 = RampComponent(
-      id: 'Ramp 2',
-    );
-    _flowManager.addComponent(ramp2);
-    _componentPositions[ramp2.id] = const Offset(100, 250);
-    _componentKeys[ramp2.id] = GlobalKey();
-
-    final numericWritable = PointComponent(
-      id: 'Numeric Writable',
-      type: ComponentType(ComponentType.NUMERIC_WRITABLE),
-    );
-    _flowManager.addComponent(numericWritable);
-    _componentPositions[numericWritable.id] = const Offset(600, 200);
-    _componentKeys[numericWritable.id] = GlobalKey();
-
-    _flowManager.createConnection(
-      ramp1.id, // Ramp 1
-      0, // Output property
-      rectangle.id, // Rectangle
-      0, // Length property
-    );
-
-    _flowManager.createConnection(
-      ramp2.id, // Ramp 2
-      0, // Output property
-      rectangle.id, // Rectangle
-      1, // Width property
-    );
-
-    _flowManager.createConnection(
-      rectangle.id, // Rectangle
-      3, // Detected topic
-      numericWritable.id, // Numeric Writable
-      0, // Input property
-    );
-
     _flowManager.recalculateAll();
     _updateCanvasSize();
     _commandHistory.clear();
+  }
+
+  void _handleWidthChanged(String componentId, double newWidth) {
+    setState(() {
+      _componentWidths[componentId] = newWidth;
+    });
+  }
+
+  void _handleComponentResize(String componentId, double newWidth) {
+    final oldWidth = _componentWidths[componentId] ?? 160.0;
+
+    setState(() {
+      final command = ResizeComponentCommand(
+        componentId,
+        newWidth,
+        oldWidth,
+        _componentWidths,
+      );
+      _commandHistory.execute(command);
+    });
   }
 
   void _addNewComponent(ComponentType type, {Offset? clickPosition}) {
@@ -283,7 +254,7 @@ class _FlowScreenState extends State<FlowScreen> {
     setState(() {
       final command = AddComponentCommand(_flowManager, newComponent, state);
       _commandHistory.execute(command);
-
+      _componentWidths[newComponent.id] = 160.0;
       _componentPositions[newComponent.id] = newPosition;
       _componentKeys[newComponent.id] = newKey;
 
@@ -587,6 +558,7 @@ class _FlowScreenState extends State<FlowScreen> {
                     flowManager: _flowManager,
                     componentPositions: _componentPositions,
                     componentKeys: _componentKeys,
+                    componentWidths: _componentWidths,
                     tempLineStartInfo: _currentDraggedPort,
                     tempLineEndPoint: _tempLineEndPoint,
                   ),
@@ -772,10 +744,13 @@ class _FlowScreenState extends State<FlowScreen> {
                                       position:
                                           _componentPositions[component.id] ??
                                               Offset.zero,
+                                      width: _componentWidths[component.id] ??
+                                          160.0,
                                       onValueChanged: _handleValueChanged,
                                       onSlotDragStarted: _handlePortDragStarted,
                                       onSlotDragAccepted:
                                           _handlePortDragAccepted,
+                                      onWidthChanged: _handleComponentResize,
                                     ),
                                   ),
                                   childWhenDragging: Opacity(
@@ -788,10 +763,13 @@ class _FlowScreenState extends State<FlowScreen> {
                                       position:
                                           _componentPositions[component.id] ??
                                               Offset.zero,
+                                      width: _componentWidths[component.id] ??
+                                          160.0,
                                       onValueChanged: _handleValueChanged,
                                       onSlotDragStarted: _handlePortDragStarted,
                                       onSlotDragAccepted:
                                           _handlePortDragAccepted,
+                                      onWidthChanged: _handleComponentResize,
                                     ),
                                   ),
                                   onDragStarted: () {
@@ -883,6 +861,9 @@ class _FlowScreenState extends State<FlowScreen> {
                                     },
                                     child: ComponentWidget(
                                       component: component,
+                                      width: _componentWidths[component.id] ??
+                                          160.0,
+                                      onWidthChanged: _handleComponentResize,
                                       isSelected: _selectedComponents
                                           .contains(component),
                                       widgetKey: _componentKeys[component.id] ??

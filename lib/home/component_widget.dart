@@ -16,9 +16,11 @@ class ComponentWidget extends StatefulWidget {
   final GlobalKey widgetKey;
   final Offset position;
   final bool isSelected;
+  final double width;
   final Function(String, int, dynamic) onValueChanged;
   final Function(SlotDragInfo) onSlotDragStarted;
   final Function(SlotDragInfo) onSlotDragAccepted;
+  final Function(String, double) onWidthChanged;
 
   const ComponentWidget({
     super.key,
@@ -26,9 +28,11 @@ class ComponentWidget extends StatefulWidget {
     required this.isSelected,
     required this.widgetKey,
     required this.position,
+    required this.width,
     required this.onValueChanged,
     required this.onSlotDragStarted,
     required this.onSlotDragAccepted,
+    required this.onWidthChanged,
   });
 
   @override
@@ -39,7 +43,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
   static const double itemExternalPadding = 8.0;
   static const double itemTitleSectionHeight = 28.0;
   static const double rowHeight = 36.0;
-  static const double rowAreaWidth = 160.0;
 
   @override
   Widget build(BuildContext context) {
@@ -67,57 +70,47 @@ class _ComponentWidgetState extends State<ComponentWidget> {
         children: [
           _buildTitleSection(),
           const SizedBox(height: 2),
-          Container(
-            width: rowAreaWidth,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.black.withOpacity(0.25)),
-              color: Colors.white.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.component.properties.isNotEmpty)
-                  ..._buildSectionHeader("Properties"),
-                ...widget.component.properties
-                    .map((property) => _buildPropertyRow(property)),
-                if (widget.component.actions.isNotEmpty)
-                  ..._buildSectionHeader("Actions"),
-                ...widget.component.actions
-                    .map((action) => _buildActionRow(action)),
-                if (widget.component.topics.isNotEmpty)
-                  ..._buildSectionHeader("Topics"),
-                ...widget.component.topics
-                    .map((topic) => _buildTopicRow(topic)),
-              ],
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: widget.width,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.black.withOpacity(0.25)),
+                  color: Colors.white.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.component.properties.isNotEmpty)
+                      ..._buildSectionHeader("Properties"),
+                    ...widget.component.properties
+                        .map((property) => _buildPropertyRow(property)),
+                    if (widget.component.actions.isNotEmpty)
+                      ..._buildSectionHeader("Actions"),
+                    ...widget.component.actions
+                        .map((action) => _buildActionRow(action)),
+                    if (widget.component.topics.isNotEmpty)
+                      ..._buildSectionHeader("Topics"),
+                    ...widget.component.topics
+                        .map((topic) => _buildTopicRow(topic)),
+                  ],
+                ),
+              ),
+              _buildResizeHandle(), // Add the resize handle
+            ],
           ),
         ],
       ),
     );
   }
 
-  List<Widget> _buildSectionHeader(String title) {
-    return [
-      Container(
-        color: Colors.grey.shade200,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 11,
-            color: Colors.grey.shade800,
-          ),
-        ),
-      ),
-    ];
-  }
-
+  // Update the _buildTitleSection to use the dynamic width
   Widget _buildTitleSection() {
     return SizedBox(
       height: itemTitleSectionHeight,
-      width: rowAreaWidth,
+      width: widget.width, // Use the provided width
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -155,6 +148,54 @@ class _ComponentWidgetState extends State<ComponentWidget> {
     );
   }
 
+  // Add the resize handle widget
+  Widget _buildResizeHandle() {
+    return GestureDetector(
+      onHorizontalDragUpdate: (details) {
+        double newWidth = widget.width + details.delta.dx;
+        // Set a minimum width
+        if (newWidth >= 100.0) {
+          widget.onWidthChanged(widget.component.id, newWidth);
+        }
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeLeftRight,
+        child: Container(
+          width: 8.0,
+          height: 200.0, // Approximate height for the component
+          color: Colors.transparent,
+          child: Center(
+            child: Container(
+              width: 3.0,
+              height: 20.0,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildSectionHeader(String title) {
+    return [
+      Container(
+        color: Colors.grey.shade200,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+            color: Colors.grey.shade800,
+          ),
+        ),
+      ),
+    ];
+  }
+
   Widget _buildPropertyRow(Property property) {
     final isInput = property.isInput;
     final label = property.name;
@@ -171,7 +212,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
             elevation: 4.0,
             color: Colors.transparent,
             child: Container(
-              width: rowAreaWidth,
               height: rowHeight,
               decoration: BoxDecoration(
                 color: Colors.indigo.withOpacity(0.2),
@@ -259,7 +299,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
             elevation: 4.0,
             color: Colors.transparent,
             child: Container(
-              width: rowAreaWidth,
               height: rowHeight,
               decoration: BoxDecoration(
                 color: Colors.amber.withOpacity(0.2),
@@ -358,7 +397,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
             elevation: 4.0,
             color: Colors.transparent,
             child: Container(
-              width: rowAreaWidth,
               height: rowHeight,
               decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.2),

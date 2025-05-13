@@ -12,6 +12,7 @@ class ConnectionPainter extends CustomPainter {
   final FlowManager flowManager;
   final Map<String, Offset> componentPositions;
   final Map<String, GlobalKey> componentKeys;
+  final Map<String, double> componentWidths; // Add this
   final SlotDragInfo? tempLineStartInfo;
   final Offset? tempLineEndPoint;
 
@@ -23,6 +24,7 @@ class ConnectionPainter extends CustomPainter {
     required this.flowManager,
     required this.componentPositions,
     required this.componentKeys,
+    required this.componentWidths, // Add this
     this.tempLineStartInfo,
     this.tempLineEndPoint,
   });
@@ -116,11 +118,11 @@ class ConnectionPainter extends CustomPainter {
         _calculateRowIndex(fromComponent, connection.fromPortIndex);
     int toRowIndex = _calculateRowIndex(toComponent, connection.toPortIndex);
 
-    final fromSlotPos =
-        _calculateSlotPosition(fromPosition, fromRowIndex, isFromOutput);
+    final fromSlotPos = _calculateSlotPosition(
+        fromPosition, fromRowIndex, isFromOutput, fromComponent.id);
 
-    final toSlotPos =
-        _calculateSlotPosition(toPosition, toRowIndex, isToOutput);
+    final toSlotPos = _calculateSlotPosition(
+        toPosition, toRowIndex, isToOutput, toComponent.id);
 
     _drawArrowLine(canvas, fromSlotPos, toSlotPos, paint);
 
@@ -206,18 +208,19 @@ class ConnectionPainter extends CustomPainter {
 
     int rowIndex = _calculateRowIndex(fromComponent, startInfo.slotIndex);
 
-    final fromSlotPos =
-        _calculateSlotPosition(fromPosition, rowIndex, isOutput);
+    final fromSlotPos = _calculateSlotPosition(
+        fromPosition, rowIndex, isOutput, fromComponent.id);
 
     _drawDashedLine(canvas, fromSlotPos, endPoint, paint);
   }
 
   Offset _calculateSlotPosition(
-      Offset itemPosition, int rowIndex, bool isRightSide) {
-    final double itemWidth = 160.0 + (itemPadding * 2);
+      Offset itemPosition, int rowIndex, bool isRightSide, String componentId) {
+    final double itemWidth = componentWidths[componentId] ?? 160.0;
+    final double totalWidth = itemWidth + (itemPadding * 2);
 
     final double portX = isRightSide
-        ? itemPosition.dx + itemWidth // Right side for outputs
+        ? itemPosition.dx + totalWidth // Right side for outputs
         : itemPosition.dx; // Left side for inputs
 
     final double portY = itemPosition.dy +
