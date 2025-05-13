@@ -59,6 +59,10 @@ class MoveRightIntent extends Intent {
   const MoveRightIntent();
 }
 
+class SelectAllIntent extends Intent {
+  const SelectAllIntent();
+}
+
 class FlowScreen extends StatefulWidget {
   const FlowScreen({super.key});
 
@@ -398,6 +402,8 @@ class _FlowScreenState extends State<FlowScreen> {
         LogicalKeySet(LogicalKeyboardKey.arrowLeft): const MoveLeftIntent(),
         LogicalKeySet(LogicalKeyboardKey.arrowRight): const MoveRightIntent(),
         LogicalKeySet(LogicalKeyboardKey.arrowUp): const MoveUpIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyA):
+            const SelectAllIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -418,6 +424,15 @@ class _FlowScreenState extends State<FlowScreen> {
                   _commandHistory.redo();
                 });
               }
+              return null;
+            },
+          ),
+          SelectAllIntent: CallbackAction<SelectAllIntent>(
+            onInvoke: (SelectAllIntent intent) {
+              setState(() {
+                _selectedComponents.clear();
+                _selectedComponents.addAll(_flowManager.components);
+              });
               return null;
             },
           ),
@@ -1013,12 +1028,10 @@ class _FlowScreenState extends State<FlowScreen> {
           _showPasteSpecialDialog(canvasPosition);
           break;
         case 'select-all':
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Select all functionality coming soon'),
-              duration: Duration(seconds: 1),
-            ),
-          );
+          setState(() {
+            _selectedComponents.clear();
+            _selectedComponents.addAll(_flowManager.components);
+          });
           break;
       }
     });
