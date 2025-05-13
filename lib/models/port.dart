@@ -1,6 +1,6 @@
 import 'port_type.dart';
 
-class Port {
+abstract class Port {
   final bool isInput;
   final int index;
   final String name;
@@ -15,24 +15,47 @@ class Port {
     this.value,
   });
 
-  factory Port.withDefaultValue({
+  bool canConnectTo(Port otherPort) {
+    if (isInput == otherPort.isInput) return false;
+
+    return type.type == PortType.ANY ||
+        otherPort.type.type == PortType.ANY ||
+        type == otherPort.type;
+  }
+}
+
+class Property extends Port {
+  Property({
+    required super.isInput,
+    required super.index,
+    required super.name,
+    required super.type,
+    super.value,
+  });
+
+  factory Property.withDefaultValue({
     required bool isInput,
     required int index,
     required String name,
     required PortType type,
   }) {
     dynamic defaultValue;
-    if (type.type == PortType.BOOLEAN) {
-      defaultValue = false;
-    } else if (type.type == PortType.NUMERIC) {
-      defaultValue = 0.0;
-    } else if (type.type == PortType.STRING) {
-      defaultValue = '';
-    } else if (type.type == PortType.ANY) {
-      defaultValue = null;
+    switch (type.type) {
+      case PortType.BOOLEAN:
+        defaultValue = false;
+        break;
+      case PortType.NUMERIC:
+        defaultValue = 0.0;
+        break;
+      case PortType.STRING:
+        defaultValue = '';
+        break;
+      case PortType.ANY:
+        defaultValue = null;
+        break;
     }
 
-    return Port(
+    return Property(
       isInput: isInput,
       index: index,
       name: name,
@@ -40,15 +63,42 @@ class Port {
       value: defaultValue,
     );
   }
+}
 
-  // Check if this port can connect to another port
-  bool canConnectTo(Port otherPort) {
-    // Input can only connect to output and vice versa
-    if (isInput == otherPort.isInput) return false;
+class Action extends Port {
+  final PortType? parameterType;
+  final PortType? returnType;
 
-    // Check type compatibility
-    return type.type == PortType.ANY ||
-        otherPort.type.type == PortType.ANY ||
-        type.type == otherPort.type.type;
+  Action({
+    required super.index,
+    required super.name,
+    this.parameterType,
+    this.returnType,
+    super.value,
+  }) : super(
+          isInput: true,
+          type: parameterType ?? PortType(PortType.ANY),
+        );
+
+  dynamic execute({dynamic parameter}) {
+    return null;
+  }
+}
+
+class Topic extends Port {
+  final PortType eventType;
+
+  Topic({
+    required super.index,
+    required super.name,
+    required this.eventType,
+  }) : super(
+          isInput: false,
+          type: eventType,
+          value: null,
+        );
+
+  void fire(dynamic event) {
+    value = event; // Store the last event value
   }
 }
