@@ -88,7 +88,6 @@ class _FlowScreenState extends State<FlowScreen> {
   Offset _canvasOffset = Offset.zero; // Canvas position within the view
   static const double _canvasPadding = 100.0; // Padding around components
 
-  Component? _clipboardComponent;
   List<Component> _clipboardComponents = [];
   List<Offset> _clipboardPositions = [];
   List<Connection> _clipboardConnections = [];
@@ -486,7 +485,7 @@ class _FlowScreenState extends State<FlowScreen> {
           ),
           PasteIntent: CallbackAction<PasteIntent>(
             onInvoke: (PasteIntent intent) {
-              if (_clipboardComponent != null) {
+              if (_clipboardComponents.isNotEmpty) {
                 if (_clipboardComponentPosition != null) {
                   const double offsetAmount = 30.0;
                   final Offset pastePosition = _clipboardComponentPosition! +
@@ -950,31 +949,35 @@ class _FlowScreenState extends State<FlowScreen> {
         ),
         PopupMenuItem(
           value: 'paste',
-          enabled: _clipboardComponent != null,
+          enabled: _clipboardComponents.isNotEmpty,
           child: Row(
             children: [
               Icon(Icons.paste,
                   size: 18,
-                  color: _clipboardComponent != null ? null : Colors.grey),
+                  color: _clipboardComponents.isNotEmpty ? null : Colors.grey),
               const SizedBox(width: 8),
               Text('Paste',
                   style: TextStyle(
-                      color: _clipboardComponent != null ? null : Colors.grey)),
+                      color: _clipboardComponents.isNotEmpty
+                          ? null
+                          : Colors.grey)),
             ],
           ),
         ),
         PopupMenuItem(
           value: 'paste-special',
-          enabled: _clipboardComponent != null,
+          enabled: _clipboardComponents.isNotEmpty,
           child: Row(
             children: [
               Icon(Icons.paste_outlined,
                   size: 18,
-                  color: _clipboardComponent != null ? null : Colors.grey),
+                  color: _clipboardComponents.isNotEmpty ? null : Colors.grey),
               const SizedBox(width: 8),
               Text('Paste Special',
                   style: TextStyle(
-                      color: _clipboardComponent != null ? null : Colors.grey)),
+                      color: _clipboardComponents.isNotEmpty
+                          ? null
+                          : Colors.grey)),
             ],
           ),
         ),
@@ -1033,7 +1036,7 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _showPasteSpecialDialog(Offset pastePosition) {
-    if (_clipboardComponent == null) return;
+    if (_clipboardComponents.isEmpty) return;
 
     showDialog(
       context: context,
@@ -1468,7 +1471,6 @@ class _FlowScreenState extends State<FlowScreen> {
     }
 
     if (_clipboardComponents.isNotEmpty) {
-      _clipboardComponent = _clipboardComponents.first;
       _clipboardComponentPosition = _clipboardPositions.first;
     }
 
@@ -1508,7 +1510,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _clipboardComponents = [component];
     _clipboardPositions = [_componentPositions[component.id] ?? Offset.zero];
     _clipboardConnections = [];
-    _clipboardComponent = component;
     _clipboardComponentPosition = _componentPositions[component.id];
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1520,51 +1521,81 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _handlePasteComponent(Offset position) {
-    if (_clipboardComponent == null) return;
-
-    String newName = '${_clipboardComponent!.id} (Copy)';
-
-    int counter = 1;
-    while (_flowManager.components.any((comp) => comp.id == newName)) {
-      counter++;
-      newName = '${_clipboardComponent!.id} (Copy $counter)';
-    }
-
-    Component newComponent = _flowManager.createComponentByType(
-        newName, _clipboardComponent!.type.type);
-
-    for (var sourceProperty in _clipboardComponent!.properties) {
-      if (sourceProperty.isInput &&
-          !_clipboardComponent!.inputConnections
-              .containsKey(sourceProperty.index)) {
-        for (var targetProperty in newComponent.properties) {
-          if (targetProperty.index == sourceProperty.index) {
-            targetProperty.value = sourceProperty.value;
-            break;
-          }
-        }
-      }
-    }
-
-    _clipboardComponent = null;
-    final newKey = GlobalKey();
-
-    Map<String, dynamic> state = {
-      'position': position,
-      'key': newKey,
-      'positions': _componentPositions,
-      'keys': _componentKeys,
-    };
+    if (_clipboardComponents.isEmpty) return;
 
     setState(() {
-      final command = AddComponentCommand(_flowManager, newComponent, state);
-      _commandHistory.execute(command);
+      Map<String, String> idMap = {};
 
-      _componentPositions[newComponent.id] = position;
-      _componentKeys[newComponent.id] = newKey;
+      for (int i = 0; i < _clipboardComponents.length; i++) {
+        var originalComponent = _clipboardComponents[i];
+        var originalPosition = _clipboardPositions[i];
+
+        Offset relativeToPastePoint = originalPosition - _clipboardPositions[0];
+        Offset newPosition = position + relativeToPastePoint;
+
+        String newName = '${originalComponent.id} (Copy)';
+        int counter = 1;
+        while (_flowManager.components.any((comp) => comp.id == newName)) {
+          counter++;
+          newName = '${originalComponent.id} (Copy $counter)';
+        }
+
+        Component newComponent = _flowManager.createComponentByType(
+            newName, originalComponent.type.type);
+
+        for (var sourceProperty in originalComponent.properties) {
+          if (!originalComponent.inputConnections
+              .containsKey(sourceProperty.index)) {
+            for (var targetProperty in newComponent.properties) {
+              if (targetProperty.index == sourceProperty.index) {
+                targetProperty.value = sourceProperty.value;
+                break;
+              }
+            }
+          }
+        }
+
+        final newKey = GlobalKey();
+
+        Map<String, dynamic> state = {
+          'position': newPosition,
+          'key': newKey,
+          'positions': _componentPositions,
+          'keys': _componentKeys,
+        };
+
+        idMap[originalComponent.id] = newComponent.id;
+        final command = AddComponentCommand(_flowManager, newComponent, state);
+        _commandHistory.execute(command);
+
+        _componentPositions[newComponent.id] = newPosition;
+        _componentKeys[newComponent.id] = newKey;
+      }
+
+      for (var connection in _clipboardConnections) {
+        String? newFromId = idMap[connection.fromComponentId];
+        String? newToId = idMap[connection.toComponentId];
+
+        if (newFromId != null && newToId != null) {
+          final command = CreateConnectionCommand(
+            _flowManager,
+            newFromId,
+            connection.fromPortIndex,
+            newToId,
+            connection.toPortIndex,
+          );
+          _commandHistory.execute(command);
+        }
+      }
 
       _updateCanvasSize();
     });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Pasted ${_clipboardComponents.length} component(s)'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _handleMoveComponentDown(Component component) {
