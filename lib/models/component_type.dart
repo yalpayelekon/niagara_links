@@ -6,6 +6,9 @@ class ComponentType {
   static const String OR_GATE = "OR_GATE";
   static const String XOR_GATE = "XOR_GATE";
   static const String NOT_GATE = "NOT_GATE";
+  static const String IS_GREATER_THAN = "IS_GREATER_THAN";
+  static const String IS_LESS_THAN = "IS_LESS_THAN";
+  static const String IS_EQUAL = "IS_EQUAL";
 
   // Math operations
   static const String ADD = "ADD";
@@ -16,11 +19,6 @@ class ComponentType {
   static const String MIN = "MIN";
   static const String POWER = "POWER";
   static const String ABS = "ABS";
-
-  // Comparison operations
-  static const String IS_GREATER_THAN = "IS_GREATER_THAN";
-  static const String IS_LESS_THAN = "IS_LESS_THAN";
-  static const String IS_EQUAL = "IS_EQUAL";
 
   // Writable points (inputs)
   static const String BOOLEAN_WRITABLE = "BOOLEAN_WRITABLE";
@@ -47,7 +45,10 @@ class ComponentType {
       type == AND_GATE ||
       type == OR_GATE ||
       type == NOT_GATE ||
-      type == XOR_GATE;
+      type == AND_GATE ||
+      type == IS_EQUAL ||
+      type == IS_LESS_THAN ||
+      type == IS_GREATER_THAN;
 
   bool get isMathOperation =>
       type == ADD ||
@@ -58,9 +59,6 @@ class ComponentType {
       type == MIN ||
       type == POWER ||
       type == ABS;
-
-  bool get isComparisonOperation =>
-      type == IS_GREATER_THAN || type == IS_LESS_THAN || type == IS_EQUAL;
 
   bool get isWritablePoint =>
       type == BOOLEAN_WRITABLE ||

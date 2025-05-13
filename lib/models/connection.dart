@@ -1,3 +1,4 @@
+// connection.dart
 class Connection {
   String fromComponentId;
   int fromPortIndex;

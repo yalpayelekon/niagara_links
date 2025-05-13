@@ -67,7 +67,7 @@ class _FlowScreenState extends State<FlowScreen> {
   Offset? _selectionBoxEnd;
   bool _isDraggingSelectionBox = false;
 
-  PortDragInfo? _currentDraggedPort;
+  SlotDragInfo? _currentDraggedPort;
   Offset? _tempLineEndPoint;
   Offset? _dragStartPosition;
   Offset? _clipboardComponentPosition;
@@ -168,100 +168,110 @@ class _FlowScreenState extends State<FlowScreen> {
     }
   }
 
+// flow_screen.dart (partial update for component creation)
+// Only showing the updated parts for component creation
+
   void _initializeComponents() {
-    // Add some starter components of various types
-
-    final boolWritable = Component(
-      id: 'Boolean Writable',
-      type: ComponentType(ComponentType.BOOLEAN_WRITABLE),
+    // Add rectangular component from our example
+    final rectangle = RectangleComponent(
+      id: 'Rectangle',
     );
-    _flowManager.addComponent(boolWritable);
-    _componentPositions[boolWritable.id] = const Offset(100, 100);
-    _componentKeys[boolWritable.id] = GlobalKey();
+    _flowManager.addComponent(rectangle);
+    _componentPositions[rectangle.id] = const Offset(350, 200);
+    _componentKeys[rectangle.id] = GlobalKey();
 
-    final num1Writable = Component(
-      id: 'Numeric 1',
+    // Add some ramp components similar to the example
+    final ramp1 = RampComponent(
+      id: 'Ramp 1',
+    );
+    _flowManager.addComponent(ramp1);
+    _componentPositions[ramp1.id] = const Offset(100, 100);
+    _componentKeys[ramp1.id] = GlobalKey();
+
+    final ramp2 = RampComponent(
+      id: 'Ramp 2',
+    );
+    _flowManager.addComponent(ramp2);
+    _componentPositions[ramp2.id] = const Offset(100, 250);
+    _componentKeys[ramp2.id] = GlobalKey();
+
+    // Standard components for testing
+    final numericWritable = PointComponent(
+      id: 'Numeric Writable',
       type: ComponentType(ComponentType.NUMERIC_WRITABLE),
     );
-    _flowManager.addComponent(num1Writable);
-    _componentPositions[num1Writable.id] = const Offset(100, 200);
-    _componentKeys[num1Writable.id] = GlobalKey();
+    _flowManager.addComponent(numericWritable);
+    _componentPositions[numericWritable.id] = const Offset(600, 200);
+    _componentKeys[numericWritable.id] = GlobalKey();
 
-    final num2Writable = Component(
-      id: 'Numeric 2',
-      type: ComponentType(ComponentType.NUMERIC_WRITABLE),
+    // Setup initial connections to match the example image
+    // Connect Ramp 1 output to Rectangle length
+    _flowManager.createConnection(
+      ramp1.id, // Ramp 1
+      0, // Output property
+      rectangle.id, // Rectangle
+      0, // Length property
     );
-    _flowManager.addComponent(num2Writable);
-    _componentPositions[num2Writable.id] = const Offset(100, 300);
-    _componentKeys[num2Writable.id] = GlobalKey();
 
-    final stringWritable = Component(
-      id: 'String Writable',
-      type: ComponentType(ComponentType.STRING_WRITABLE),
+    // Connect Ramp 2 output to Rectangle width
+    _flowManager.createConnection(
+      ramp2.id, // Ramp 2
+      0, // Output property
+      rectangle.id, // Rectangle
+      1, // Width property
     );
-    _flowManager.addComponent(stringWritable);
-    _componentPositions[stringWritable.id] = const Offset(100, 400);
-    _componentKeys[stringWritable.id] = GlobalKey();
 
-    // Add read-only point examples
-    final boolPoint = Component(
-      id: 'Boolean Point',
-      type: ComponentType(ComponentType.BOOLEAN_POINT),
+    // Connect Rectangle detected topic to Numeric Writable
+    _flowManager.createConnection(
+      rectangle.id, // Rectangle
+      3, // Detected topic
+      numericWritable.id, // Numeric Writable
+      0, // Input property
     );
-    _flowManager.addComponent(boolPoint);
-    _componentPositions[boolPoint.id] = const Offset(100, 500);
-    _componentKeys[boolPoint.id] = GlobalKey();
-
-    final numPoint = Component(
-      id: 'Numeric Point',
-      type: ComponentType(ComponentType.NUMERIC_POINT),
-    );
-    _flowManager.addComponent(numPoint);
-    _componentPositions[numPoint.id] = const Offset(100, 600);
-    _componentKeys[numPoint.id] = GlobalKey();
-
-    final andGate = Component(
-      id: 'AND Gate',
-      type: ComponentType(ComponentType.AND_GATE),
-    );
-    _flowManager.addComponent(andGate);
-    _componentPositions[andGate.id] = const Offset(350, 150);
-    _componentKeys[andGate.id] = GlobalKey();
-
-    final addComp = Component(
-      id: 'Addition',
-      type: ComponentType(ComponentType.ADD),
-    );
-    _flowManager.addComponent(addComp);
-    _componentPositions[addComp.id] = const Offset(350, 250);
-    _componentKeys[addComp.id] = GlobalKey();
-
-    final greaterThan = Component(
-      id: 'Greater Than',
-      type: ComponentType(ComponentType.IS_GREATER_THAN),
-    );
-    _flowManager.addComponent(greaterThan);
-    _componentPositions[greaterThan.id] = const Offset(350, 350);
-    _componentKeys[greaterThan.id] = GlobalKey();
-
-    final equals = Component(
-      id: 'Equality',
-      type: ComponentType(ComponentType.IS_EQUAL),
-    );
-    _flowManager.addComponent(equals);
-    _componentPositions[equals.id] = const Offset(600, 250);
-    _componentKeys[equals.id] = GlobalKey();
-
-    boolWritable.ports[0].value = true;
-    num1Writable.ports[0].value = 5.0;
-    num2Writable.ports[0].value = 3.0;
-    stringWritable.ports[0].value = "Hello";
-    boolPoint.ports[0].value = false;
-    numPoint.ports[0].value = 42.0;
 
     _flowManager.recalculateAll();
     _updateCanvasSize();
     _commandHistory.clear();
+  }
+
+  void _addNewComponent(ComponentType type, {Offset? clickPosition}) {
+    String baseName = getNameForComponentType(type);
+    int counter = 1;
+    String newName = '$baseName $counter';
+
+    while (_flowManager.components.any((comp) => comp.id == newName)) {
+      counter++;
+      newName = '$baseName $counter';
+    }
+
+    Component newComponent =
+        _flowManager.createComponentByType(newName, type.type);
+
+    Offset newPosition;
+    if (clickPosition != null) {
+      newPosition = clickPosition;
+    } else {
+      // ... existing positioning code ...
+    }
+
+    final newKey = GlobalKey();
+
+    Map<String, dynamic> state = {
+      'position': newPosition,
+      'key': newKey,
+      'positions': _componentPositions,
+      'keys': _componentKeys,
+    };
+
+    setState(() {
+      final command = AddComponentCommand(_flowManager, newComponent, state);
+      _commandHistory.execute(command);
+
+      _componentPositions[newComponent.id] = newPosition;
+      _componentKeys[newComponent.id] = newKey;
+
+      _updateCanvasSize();
+    });
   }
 
   void _handleValueChanged(
@@ -304,32 +314,32 @@ class _FlowScreenState extends State<FlowScreen> {
     return null;
   }
 
-  void _handlePortDragStarted(PortDragInfo portInfo) {
+  void _handlePortDragStarted(SlotDragInfo slotInfo) {
     setState(() {
-      _currentDraggedPort = portInfo;
+      _currentDraggedPort = slotInfo;
     });
   }
 
-  void _handlePortDragAccepted(PortDragInfo targetPortInfo) {
+  void _handlePortDragAccepted(SlotDragInfo targetSlotInfo) {
     if (_currentDraggedPort != null) {
       Component? sourceComponent =
           _flowManager.findComponentById(_currentDraggedPort!.componentId);
       Component? targetComponent =
-          _flowManager.findComponentById(targetPortInfo.componentId);
+          _flowManager.findComponentById(targetSlotInfo.componentId);
 
       if (sourceComponent != null && targetComponent != null) {
         if (_flowManager.canCreateConnection(
             _currentDraggedPort!.componentId,
-            _currentDraggedPort!.portIndex,
-            targetPortInfo.componentId,
-            targetPortInfo.portIndex)) {
+            _currentDraggedPort!.slotIndex,
+            targetSlotInfo.componentId,
+            targetSlotInfo.slotIndex)) {
           setState(() {
             final command = CreateConnectionCommand(
               _flowManager,
               _currentDraggedPort!.componentId,
-              _currentDraggedPort!.portIndex,
-              targetPortInfo.componentId,
-              targetPortInfo.portIndex,
+              _currentDraggedPort!.slotIndex,
+              targetSlotInfo.componentId,
+              targetSlotInfo.slotIndex,
             );
             _commandHistory.execute(command);
           });
@@ -337,7 +347,7 @@ class _FlowScreenState extends State<FlowScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  'Cannot connect these ports - type mismatch or invalid connection'),
+                  'Cannot connect these slots - type mismatch or invalid connection'),
               duration: Duration(seconds: 2),
             ),
           );
@@ -741,8 +751,8 @@ class _FlowScreenState extends State<FlowScreen> {
                                           _componentPositions[component.id] ??
                                               Offset.zero,
                                       onValueChanged: _handleValueChanged,
-                                      onPortDragStarted: _handlePortDragStarted,
-                                      onPortDragAccepted:
+                                      onSlotDragStarted: _handlePortDragStarted,
+                                      onSlotDragAccepted:
                                           _handlePortDragAccepted,
                                     ),
                                   ),
@@ -752,13 +762,14 @@ class _FlowScreenState extends State<FlowScreen> {
                                       component: component,
                                       isSelected: _selectedComponents
                                           .contains(component),
-                                      widgetKey: GlobalKey(),
+                                      widgetKey: _componentKeys[component.id] ??
+                                          GlobalKey(),
                                       position:
                                           _componentPositions[component.id] ??
                                               Offset.zero,
                                       onValueChanged: _handleValueChanged,
-                                      onPortDragStarted: _handlePortDragStarted,
-                                      onPortDragAccepted:
+                                      onSlotDragStarted: _handlePortDragStarted,
+                                      onSlotDragAccepted:
                                           _handlePortDragAccepted,
                                     ),
                                   ),
@@ -998,6 +1009,13 @@ class _FlowScreenState extends State<FlowScreen> {
             height: 400,
             child: ListView(
               children: [
+                _buildComponentCategorySection(
+                    'Custom Components',
+                    [
+                      RectangleComponent.RECTANGLE,
+                      RampComponent.RAMP,
+                    ],
+                    position),
                 _buildComponentCategorySection(
                     'Logic Gates',
                     [

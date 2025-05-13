@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:niagara_links/models/component.dart';
-import 'package:niagara_links/models/port.dart';
-
-import '../models/component_type.dart';
+import '../models/component.dart';
+import '../models/port.dart';
 import '../models/port_type.dart';
 import 'utils.dart';
 
-class PortDragInfo {
+class SlotDragInfo {
   final String componentId;
-  final int portIndex;
+  final int slotIndex;
 
-  PortDragInfo(this.componentId, this.portIndex);
+  SlotDragInfo(this.componentId, this.slotIndex);
 }
 
 class ComponentWidget extends StatefulWidget {
@@ -19,8 +17,8 @@ class ComponentWidget extends StatefulWidget {
   final Offset position;
   final bool isSelected;
   final Function(String, int, dynamic) onValueChanged;
-  final Function(PortDragInfo) onPortDragStarted;
-  final Function(PortDragInfo) onPortDragAccepted;
+  final Function(SlotDragInfo) onSlotDragStarted;
+  final Function(SlotDragInfo) onSlotDragAccepted;
 
   const ComponentWidget({
     super.key,
@@ -29,8 +27,8 @@ class ComponentWidget extends StatefulWidget {
     required this.widgetKey,
     required this.position,
     required this.onValueChanged,
-    required this.onPortDragStarted,
-    required this.onPortDragAccepted,
+    required this.onSlotDragStarted,
+    required this.onSlotDragAccepted,
   });
 
   @override
@@ -78,15 +76,42 @@ class _ComponentWidgetState extends State<ComponentWidget> {
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: List.generate(
-                widget.component.ports.length,
-                (index) => _buildPortRow(index),
-              ),
+              children: [
+                if (widget.component.properties.isNotEmpty)
+                  ..._buildSectionHeader("Properties"),
+                ...widget.component.properties
+                    .map((property) => _buildPropertyRow(property)),
+                if (widget.component.actions.isNotEmpty)
+                  ..._buildSectionHeader("Actions"),
+                ...widget.component.actions
+                    .map((action) => _buildActionRow(action)),
+                if (widget.component.topics.isNotEmpty)
+                  ..._buildSectionHeader("Topics"),
+                ...widget.component.topics
+                    .map((topic) => _buildTopicRow(topic)),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  List<Widget> _buildSectionHeader(String title) {
+    return [
+      Container(
+        color: Colors.grey.shade200,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+            color: Colors.grey.shade800,
+          ),
+        ),
+      ),
+    ];
   }
 
   Widget _buildTitleSection() {
@@ -130,18 +155,18 @@ class _ComponentWidgetState extends State<ComponentWidget> {
     );
   }
 
-  Widget _buildPortRow(int index) {
-    final port = widget.component.ports[index];
-    final isInput = port.isInput;
-    final label = port.name;
+  Widget _buildPropertyRow(Property property) {
+    final isInput = property.isInput;
+    final label = property.name;
 
-    return DragTarget<PortDragInfo>(
-      onAcceptWithDetails: (DragTargetDetails<PortDragInfo> details) {
-        widget.onPortDragAccepted(PortDragInfo(widget.component.id, index));
+    return DragTarget<SlotDragInfo>(
+      onAcceptWithDetails: (DragTargetDetails<SlotDragInfo> details) {
+        widget.onSlotDragAccepted(
+            SlotDragInfo(widget.component.id, property.index));
       },
       builder: (context, candidateData, rejectedData) {
-        return LongPressDraggable<PortDragInfo>(
-          data: PortDragInfo(widget.component.id, index),
+        return LongPressDraggable<SlotDragInfo>(
+          data: SlotDragInfo(widget.component.id, property.index),
           feedback: Material(
             elevation: 4.0,
             color: Colors.transparent,
@@ -169,7 +194,8 @@ class _ComponentWidgetState extends State<ComponentWidget> {
             ),
           ),
           onDragStarted: () {
-            widget.onPortDragStarted(PortDragInfo(widget.component.id, index));
+            widget.onSlotDragStarted(
+                SlotDragInfo(widget.component.id, property.index));
           },
           child: Container(
             height: rowHeight,
@@ -179,14 +205,12 @@ class _ComponentWidgetState extends State<ComponentWidget> {
               color: (candidateData.isNotEmpty)
                   ? Colors.lightBlue.withOpacity(0.3)
                   : null,
-              border: (index < widget.component.ports.length - 1)
-                  ? Border(
-                      bottom: BorderSide(
-                        color: Colors.black.withOpacity(0.15),
-                        width: 1.0,
-                      ),
-                    )
-                  : null,
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.black.withOpacity(0.15),
+                  width: 1.0,
+                ),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -208,10 +232,10 @@ class _ComponentWidgetState extends State<ComponentWidget> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    buildTypeIndicator(port.type),
+                    buildTypeIndicator(property.type),
                   ],
                 ),
-                _buildValueDisplay(port),
+                _buildPropertyValueDisplay(property),
               ],
             ),
           ),
@@ -220,22 +244,227 @@ class _ComponentWidgetState extends State<ComponentWidget> {
     );
   }
 
-  Widget _buildValueDisplay(Port port) {
+  Widget _buildActionRow(ActionSlot action) {
+    final label = action.name;
+
+    return DragTarget<SlotDragInfo>(
+      onAcceptWithDetails: (DragTargetDetails<SlotDragInfo> details) {
+        widget.onSlotDragAccepted(
+            SlotDragInfo(widget.component.id, action.index));
+      },
+      builder: (context, candidateData, rejectedData) {
+        return LongPressDraggable<SlotDragInfo>(
+          data: SlotDragInfo(widget.component.id, action.index),
+          feedback: Material(
+            elevation: 4.0,
+            color: Colors.transparent,
+            child: Container(
+              width: rowAreaWidth,
+              height: rowHeight,
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.2),
+                border: Border.all(
+                  color: Colors.amber.shade800,
+                  width: 1.0,
+                ),
+                borderRadius: BorderRadius.circular(3.0),
+              ),
+              child: Center(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.amber.shade800,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          onDragStarted: () {
+            widget.onSlotDragStarted(
+                SlotDragInfo(widget.component.id, action.index));
+          },
+          child: Container(
+            height: rowHeight,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 6.0),
+            decoration: BoxDecoration(
+              color: (candidateData.isNotEmpty)
+                  ? Colors.amber.withOpacity(0.2)
+                  : null,
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.black.withOpacity(0.15),
+                  width: 1.0,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.flash_on,
+                      size: 14,
+                      color: Colors.amber.shade800,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.black.withOpacity(0.8),
+                      ),
+                    ),
+                    if (action.parameterType != null) ...[
+                      const SizedBox(width: 4),
+                      buildTypeIndicator(action.parameterType!),
+                    ],
+                  ],
+                ),
+                IconButton(
+                  icon: Icon(Icons.play_arrow,
+                      size: 16, color: Colors.amber.shade800),
+                  constraints: BoxConstraints.tightFor(width: 24, height: 24),
+                  padding: EdgeInsets.zero,
+                  onPressed: () {
+                    // Execute the action
+                    widget.onValueChanged(
+                        widget.component.id, action.index, null);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTopicRow(Topic topic) {
+    final label = topic.name;
+
+    return DragTarget<SlotDragInfo>(
+      onAcceptWithDetails: (DragTargetDetails<SlotDragInfo> details) {
+        widget
+            .onSlotDragAccepted(SlotDragInfo(widget.component.id, topic.index));
+      },
+      builder: (context, candidateData, rejectedData) {
+        return LongPressDraggable<SlotDragInfo>(
+          data: SlotDragInfo(widget.component.id, topic.index),
+          feedback: Material(
+            elevation: 4.0,
+            color: Colors.transparent,
+            child: Container(
+              width: rowAreaWidth,
+              height: rowHeight,
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.2),
+                border: Border.all(
+                  color: Colors.green.shade800,
+                  width: 1.0,
+                ),
+                borderRadius: BorderRadius.circular(3.0),
+              ),
+              child: Center(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.green.shade800,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          onDragStarted: () {
+            widget.onSlotDragStarted(
+                SlotDragInfo(widget.component.id, topic.index));
+          },
+          child: Container(
+            height: rowHeight,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 6.0),
+            decoration: BoxDecoration(
+              color: (candidateData.isNotEmpty)
+                  ? Colors.green.withOpacity(0.2)
+                  : null,
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.black.withOpacity(0.15),
+                  width: 1.0,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.volume_up,
+                      size: 14,
+                      color: Colors.green.shade800,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.black.withOpacity(0.8),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    buildTypeIndicator(topic.eventType),
+                  ],
+                ),
+                if (topic.lastEvent != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Text(
+                      _formatEventValue(topic.lastEvent),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.green.shade800,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatEventValue(dynamic value) {
+    if (value == null) return "null";
+    if (value is bool) return value ? "T" : "F";
+    if (value is num) return value.toStringAsFixed(1);
+    if (value is String)
+      return '"${value.length > 5 ? '${value.substring(0, 5)}...' : value}"';
+    return value.toString();
+  }
+
+  Widget _buildPropertyValueDisplay(Property property) {
     Component component = widget.component;
-    port = port;
 
-    bool canEdit = component.type.type == ComponentType.BOOLEAN_WRITABLE ||
-        component.type.type == ComponentType.NUMERIC_WRITABLE ||
-        component.type.type == ComponentType.STRING_WRITABLE ||
-        (port.isInput && component.inputConnections[port.index] == null);
+    bool canEdit =
+        property.isInput && component.inputConnections[property.index] == null;
 
-    switch (port.type.type) {
+    switch (property.type.type) {
       case PortType.BOOLEAN:
         return GestureDetector(
           onTap: canEdit
               ? () {
-                  widget.onValueChanged(
-                      widget.component.id, port.index, !(port.value as bool));
+                  widget.onValueChanged(widget.component.id, property.index,
+                      !(property.value as bool));
                 }
               : null,
           child: Row(
@@ -246,7 +475,8 @@ class _ComponentWidgetState extends State<ComponentWidget> {
                 height: 18,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  color: port.value as bool ? Colors.green : Colors.red[300],
+                  color:
+                      property.value as bool ? Colors.green : Colors.red[300],
                   border: Border.all(
                     color: Colors.black45,
                     width: 0.5,
@@ -254,7 +484,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
                 ),
                 child: AnimatedAlign(
                   duration: const Duration(milliseconds: 150),
-                  alignment: port.value as bool
+                  alignment: property.value as bool
                       ? Alignment.centerRight
                       : Alignment.centerLeft,
                   child: Container(
@@ -273,12 +503,13 @@ class _ComponentWidgetState extends State<ComponentWidget> {
               ),
               const SizedBox(width: 4),
               Text(
-                port.value as bool ? 'T' : 'F',
+                property.value as bool ? 'T' : 'F',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color:
-                      port.value as bool ? Colors.green[800] : Colors.red[800],
+                  color: property.value as bool
+                      ? Colors.green[800]
+                      : Colors.red[800],
                 ),
               ),
             ],
@@ -292,7 +523,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
           child: TextField(
             enabled: canEdit,
             controller:
-                TextEditingController(text: (port.value as num).toString()),
+                TextEditingController(text: (property.value as num).toString()),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             textAlign: TextAlign.right,
             style: const TextStyle(fontSize: 12),
@@ -311,7 +542,8 @@ class _ComponentWidgetState extends State<ComponentWidget> {
             onChanged: (newValue) {
               num? parsed = num.tryParse(newValue);
               if (parsed != null) {
-                widget.onValueChanged(widget.component.id, port.index, parsed);
+                widget.onValueChanged(
+                    widget.component.id, property.index, parsed);
               }
             },
           ),
@@ -323,7 +555,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
           height: 24,
           child: TextField(
             enabled: canEdit,
-            controller: TextEditingController(text: port.value as String),
+            controller: TextEditingController(text: property.value as String),
             textAlign: TextAlign.right,
             style: const TextStyle(fontSize: 12),
             decoration: InputDecoration(
@@ -339,25 +571,26 @@ class _ComponentWidgetState extends State<ComponentWidget> {
               fillColor: canEdit ? Colors.white : Colors.grey[200],
             ),
             onChanged: (newValue) {
-              widget.onValueChanged(widget.component.id, port.index, newValue);
+              widget.onValueChanged(
+                  widget.component.id, property.index, newValue);
             },
           ),
         );
 
       case PortType.ANY:
-        if (port.value is bool) {
+        if (property.value is bool) {
           return Text(
-            port.value as bool ? 'true' : 'false',
+            property.value as bool ? 'true' : 'false',
             style: const TextStyle(fontSize: 10),
           );
-        } else if (port.value is num) {
+        } else if (property.value is num) {
           return Text(
-            (port.value as num).toString(),
+            (property.value as num).toString(),
             style: const TextStyle(fontSize: 10),
           );
-        } else if (port.value is String) {
+        } else if (property.value is String) {
           return Text(
-            '"${port.value as String}"',
+            '"${property.value as String}"',
             style: const TextStyle(fontSize: 10),
           );
         } else {

@@ -1,9 +1,21 @@
+// utils.dart
 import 'package:flutter/material.dart';
 import '../models/component.dart';
 import '../models/component_type.dart';
 import '../models/port_type.dart';
+import '../models/ramp_component.dart';
+import '../models/rectangle.dart';
 
 String getComponentSymbol(Component component) {
+  // Custom components
+  if (component.type.type == RectangleComponent.RECTANGLE) {
+    return 'R';
+  }
+  if (component.type.type == RampComponent.RAMP) {
+    return '⏱️';
+  }
+
+  // Standard components
   switch (component.type.type) {
     case ComponentType.AND_GATE:
       return 'AND';
@@ -53,12 +65,19 @@ String getComponentSymbol(Component component) {
 }
 
 Color getComponentColor(Component component) {
+  // Custom components
+  if (component.type.type == RectangleComponent.RECTANGLE) {
+    return Colors.lime[100]!;
+  }
+  if (component.type.type == RampComponent.RAMP) {
+    return Colors.amber[100]!;
+  }
+
+  // Standard components
   if (component.type.isLogicGate) {
     return Colors.lightBlue[100]!;
   } else if (component.type.isMathOperation) {
     return Colors.lightGreen[100]!;
-  } else if (component.type.isComparisonOperation) {
-    return Colors.purpleAccent[100]!;
   } else if (component.type.type == ComponentType.BOOLEAN_WRITABLE ||
       component.type.type == ComponentType.BOOLEAN_POINT) {
     return Colors.indigo[100]!;
@@ -73,13 +92,21 @@ Color getComponentColor(Component component) {
   }
 }
 
+// utils.dart (continued)
 Color getComponentTextColor(Component component) {
+  // Custom components
+  if (component.type.type == RectangleComponent.RECTANGLE) {
+    return Colors.green[800]!;
+  }
+  if (component.type.type == RampComponent.RAMP) {
+    return Colors.amber[800]!;
+  }
+
+  // Standard components
   if (component.type.isLogicGate) {
     return Colors.blue[800]!;
   } else if (component.type.isMathOperation) {
     return Colors.green[800]!;
-  } else if (component.type.isComparisonOperation) {
-    return Colors.purple[800]!;
   } else if (component.type.type == ComponentType.BOOLEAN_WRITABLE ||
       component.type.type == ComponentType.BOOLEAN_POINT) {
     return Colors.indigo[800]!;
@@ -128,6 +155,15 @@ Widget buildTypeIndicator(PortType type) {
 }
 
 IconData getIconForComponentType(ComponentType type) {
+  // Custom components
+  if (type.type == RectangleComponent.RECTANGLE) {
+    return Icons.crop_square;
+  }
+  if (type.type == RampComponent.RAMP) {
+    return Icons.show_chart;
+  }
+
+  // Standard components
   switch (type.type) {
     case ComponentType.AND_GATE:
       return Icons.call_merge;
@@ -182,6 +218,15 @@ IconData getIconForComponentType(ComponentType type) {
 }
 
 String getNameForComponentType(ComponentType type) {
+  // Custom components
+  if (type.type == RectangleComponent.RECTANGLE) {
+    return 'Rectangle';
+  }
+  if (type.type == RampComponent.RAMP) {
+    return 'Ramp';
+  }
+
+  // Standard components
   switch (type.type) {
     case ComponentType.AND_GATE:
       return 'AND Gate';
@@ -236,6 +281,15 @@ String getNameForComponentType(ComponentType type) {
 }
 
 List<ComponentType> getCompatibleTypes(ComponentType currentType) {
+  // Custom types
+  if (currentType.type == RectangleComponent.RECTANGLE) {
+    return [ComponentType(RectangleComponent.RECTANGLE)];
+  }
+  if (currentType.type == RampComponent.RAMP) {
+    return [ComponentType(RampComponent.RAMP)];
+  }
+
+  // Standard types
   List<String> compatibleTypeStrings = [];
 
   // Group types by their port structure for compatibility

@@ -1,42 +1,34 @@
 import 'port_type.dart';
 
-abstract class Port {
-  final bool isInput;
-  final int index;
+// Base Slot interface
+abstract class Slot {
   final String name;
+  final int index;
+
+  Slot({
+    required this.name,
+    required this.index,
+  });
+}
+
+// Property slot (formerly Port)
+class Property extends Slot {
+  final bool isInput;
   final PortType type;
   dynamic value; // Can store boolean, number, or string
 
-  Port({
+  Property({
+    required super.name,
+    required super.index,
     required this.isInput,
-    required this.index,
-    required this.name,
     required this.type,
     this.value,
   });
 
-  bool canConnectTo(Port otherPort) {
-    if (isInput == otherPort.isInput) return false;
-
-    return type.type == PortType.ANY ||
-        otherPort.type.type == PortType.ANY ||
-        type == otherPort.type;
-  }
-}
-
-class Property extends Port {
-  Property({
-    required super.isInput,
-    required super.index,
-    required super.name,
-    required super.type,
-    super.value,
-  });
-
   factory Property.withDefaultValue({
-    required bool isInput,
-    required int index,
     required String name,
+    required int index,
+    required bool isInput,
     required PortType type,
   }) {
     dynamic defaultValue;
@@ -56,49 +48,57 @@ class Property extends Port {
     }
 
     return Property(
-      isInput: isInput,
-      index: index,
       name: name,
+      index: index,
+      isInput: isInput,
       type: type,
       value: defaultValue,
     );
   }
-}
 
-class Action extends Port {
-  final PortType? parameterType;
-  final PortType? returnType;
+  bool canConnectTo(Property otherProperty) {
+    if (isInput == otherProperty.isInput) return false;
 
-  Action({
-    required super.index,
-    required super.name,
-    this.parameterType,
-    this.returnType,
-    super.value,
-  }) : super(
-          isInput: true,
-          type: parameterType ?? PortType(PortType.ANY),
-        );
-
-  dynamic execute({dynamic parameter}) {
-    return null;
+    return type.type == PortType.ANY ||
+        otherProperty.type.type == PortType.ANY ||
+        type == otherProperty.type;
   }
 }
 
-class Topic extends Port {
+class ActionSlot extends Slot {
+  final PortType? parameterType;
+  final PortType? returnType;
+  dynamic parameter;
+  dynamic returnValue;
+
+  ActionSlot({
+    required super.name,
+    required super.index,
+    this.parameterType,
+    this.returnType,
+    this.parameter,
+    this.returnValue,
+  });
+
+  dynamic execute({dynamic parameter}) {
+    // Base implementation - should be overridden
+    this.parameter = parameter;
+    return returnValue;
+  }
+}
+
+// Topic slot
+class Topic extends Slot {
   final PortType eventType;
+  dynamic lastEvent;
 
   Topic({
-    required super.index,
     required super.name,
+    required super.index,
     required this.eventType,
-  }) : super(
-          isInput: false,
-          type: eventType,
-          value: null,
-        );
+  });
 
   void fire(dynamic event) {
-    value = event; // Store the last event value
+    lastEvent = event; // Store the last event value
   }
 }
