@@ -519,7 +519,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
         return Padding(
           padding: const EdgeInsets.only(right: 8.0),
           child: Text(
-            (property.value as num).toString(),
+            (property.value as num).toStringAsFixed(2),
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
@@ -559,7 +559,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
           );
         } else if (property.value is num) {
           return Text(
-            (property.value as num).toString(),
+            (property.value as num).toStringAsFixed(2),
             style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
