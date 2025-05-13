@@ -29,41 +29,35 @@ class ConnectionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Paint for property connections (blue)
     final Paint propertyPaint = Paint()
       ..color = Colors.indigo
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    // Paint for action connections (amber)
     final Paint actionPaint = Paint()
       ..color = Colors.amber.shade700
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    // Paint for topic connections (green)
     final Paint topicPaint = Paint()
       ..color = Colors.green.shade700
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    // Paint for temporary drag line
     final Paint tempLinePaint = Paint()
       ..color = Colors.blue.withOpacity(0.7)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    // Draw all permanent connections
     for (final connection in flowManager.connections) {
       _drawConnection(
           canvas, connection, propertyPaint, actionPaint, topicPaint);
     }
 
-    // Draw temporary line while dragging
     if (tempLineStartInfo != null && tempLineEndPoint != null) {
       _drawTempLine(
           canvas, tempLineStartInfo!, tempLineEndPoint!, tempLinePaint);
@@ -84,13 +78,11 @@ class ConnectionPainter extends CustomPainter {
 
     if (fromPosition == null || toPosition == null) return;
 
-    // Get slots
     Slot? fromSlot = fromComponent.getSlotByIndex(connection.fromPortIndex);
     Slot? toSlot = toComponent.getSlotByIndex(connection.toPortIndex);
 
     if (fromSlot == null || toSlot == null) return;
 
-    // Determine which paint to use based on slot types
     Paint paint;
     if (fromSlot is Property && toSlot is Property) {
       paint = propertyPaint;
@@ -102,7 +94,6 @@ class ConnectionPainter extends CustomPainter {
       paint = propertyPaint; // default
     }
 
-    // Calculate positions
     bool isFromOutput = false;
     if (fromSlot is Property) {
       isFromOutput = !fromSlot.isInput;
@@ -121,7 +112,6 @@ class ConnectionPainter extends CustomPainter {
       isToOutput = true; // Topics are always outputs
     }
 
-    // Calculate row positions based on slot index
     int fromRowIndex =
         _calculateRowIndex(fromComponent, connection.fromPortIndex);
     int toRowIndex = _calculateRowIndex(toComponent, connection.toPortIndex);
@@ -132,10 +122,8 @@ class ConnectionPainter extends CustomPainter {
     final toSlotPos =
         _calculateSlotPosition(toPosition, toRowIndex, isToOutput);
 
-    // Draw connection line with arrow
     _drawArrowLine(canvas, fromSlotPos, toSlotPos, paint);
 
-    // Draw the value being transferred if applicable
     if (fromSlot is Property) {
       _drawTransferredValue(canvas, fromSlotPos, toSlotPos, fromSlot);
     } else if (fromSlot is Topic && fromSlot.lastEvent != null) {
@@ -143,36 +131,30 @@ class ConnectionPainter extends CustomPainter {
     }
   }
 
-  // Calculate the row index for a slot within the component's UI
   int _calculateRowIndex(Component component, int slotIndex) {
     Slot? slot = component.getSlotByIndex(slotIndex);
     if (slot == null) return 0;
 
-    // Count previous properties
     int propertiesBeforeIndex = 0;
     for (var prop in component.properties) {
       if (prop.index == slotIndex) break;
       propertiesBeforeIndex++;
     }
 
-    // Count previous actions
     int actionsBeforeIndex = 0;
     for (var action in component.actions) {
       if (action.index == slotIndex) break;
       actionsBeforeIndex++;
     }
 
-    // Count previous topics
     int topicsBeforeIndex = 0;
     for (var topic in component.topics) {
       if (topic.index == slotIndex) break;
       topicsBeforeIndex++;
     }
 
-    // Calculate row number
     int rowIndex = 0;
 
-    // Add section header if present
     if (component.properties.isNotEmpty &&
         component.properties.contains(slot)) {
       rowIndex = propertiesBeforeIndex;
@@ -215,7 +197,6 @@ class ConnectionPainter extends CustomPainter {
     Slot? fromSlot = fromComponent.getSlotByIndex(startInfo.slotIndex);
     if (fromSlot == null) return;
 
-    // Determine if the slot is an output
     bool isOutput = false;
     if (fromSlot is Property) {
       isOutput = !fromSlot.isInput;
@@ -223,28 +204,22 @@ class ConnectionPainter extends CustomPainter {
       isOutput = true; // Topics are always outputs
     }
 
-    // Calculate row index
     int rowIndex = _calculateRowIndex(fromComponent, startInfo.slotIndex);
 
-    // Calculate port position
     final fromSlotPos =
         _calculateSlotPosition(fromPosition, rowIndex, isOutput);
 
-    // Draw dashed line
     _drawDashedLine(canvas, fromSlotPos, endPoint, paint);
   }
 
   Offset _calculateSlotPosition(
       Offset itemPosition, int rowIndex, bool isRightSide) {
-    // Get the center X of the item (estimated width is 160 + padding*2)
     final double itemWidth = 160.0 + (itemPadding * 2);
 
-    // X position depends on whether it's an input (left) or output (right) side
     final double portX = isRightSide
         ? itemPosition.dx + itemWidth // Right side for outputs
         : itemPosition.dx; // Left side for inputs
 
-    // Y position is based on the row index
     final double portY = itemPosition.dy +
         itemPadding +
         rowVerticalOffset +
@@ -255,10 +230,8 @@ class ConnectionPainter extends CustomPainter {
   }
 
   void _drawArrowLine(Canvas canvas, Offset start, Offset end, Paint paint) {
-    // Draw the main line
     canvas.drawLine(start, end, paint);
 
-    // Draw arrow at end
     final double arrowSize = 8.0;
     final double angle = atan2(end.dy - start.dy, end.dx - start.dx);
 
@@ -280,7 +253,6 @@ class ConnectionPainter extends CustomPainter {
     const double dashWidth = 5;
     const double dashSpace = 3;
 
-    // Calculate dash count based on line length
     final double dx = end.dx - start.dx;
     final double dy = end.dy - start.dy;
     final double distance = sqrt(dx * dx + dy * dy);
@@ -291,7 +263,6 @@ class ConnectionPainter extends CustomPainter {
     final double stepX = dx / dashCount;
     final double stepY = dy / dashCount;
 
-    // Draw background line for better visibility
     final Paint backgroundPaint = Paint()
       ..color = Colors.white.withOpacity(0.5)
       ..strokeWidth = paint.strokeWidth + 1.0
@@ -300,7 +271,6 @@ class ConnectionPainter extends CustomPainter {
 
     canvas.drawLine(start, end, backgroundPaint);
 
-    // Draw dashed line
     for (int i = 0; i < dashCount; i++) {
       final double startX =
           start.dx + i * (stepX + stepX * dashSpace / dashWidth);
@@ -316,18 +286,15 @@ class ConnectionPainter extends CustomPainter {
 
   void _drawTransferredValue(
       Canvas canvas, Offset start, Offset end, Property property) {
-    // Calculate midpoint of the line
     final Offset midpoint = Offset(
       (start.dx + end.dx) / 2,
       (start.dy + end.dy) / 2,
     );
 
-    // Create background for the value text
     final Paint backgroundPaint = Paint()
       ..color = Colors.white.withOpacity(0.85)
       ..style = PaintingStyle.fill;
 
-    // Get color based on port type
     Color? borderColor;
     String? displayValue;
 
@@ -367,12 +334,10 @@ class ConnectionPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
-    // Draw value bubble
     final double bubbleRadius = 14.0;
     canvas.drawCircle(midpoint, bubbleRadius, backgroundPaint);
     canvas.drawCircle(midpoint, bubbleRadius, borderPaint);
 
-    // Prepare text painter for value
     final textSpan = TextSpan(
       text: displayValue,
       style: TextStyle(
@@ -388,8 +353,6 @@ class ConnectionPainter extends CustomPainter {
     );
 
     textPainter.layout();
-
-    // Center text in the bubble
     textPainter.paint(
       canvas,
       Offset(
@@ -401,18 +364,15 @@ class ConnectionPainter extends CustomPainter {
 
   void _drawTransferredTopicEvent(
       Canvas canvas, Offset start, Offset end, Topic topic) {
-    // Calculate midpoint of the line
     final Offset midpoint = Offset(
       (start.dx + end.dx) / 2,
       (start.dy + end.dy) / 2,
     );
 
-    // Create background for the value text
     final Paint backgroundPaint = Paint()
       ..color = Colors.white.withOpacity(0.85)
       ..style = PaintingStyle.fill;
 
-    // Green color for topics
     Color borderColor = Colors.green.withOpacity(0.6);
     String displayValue = _formatEventValue(topic.lastEvent);
 
@@ -421,7 +381,6 @@ class ConnectionPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
-    // Draw value bubble (use square for topics)
     final double bubbleSize = 20.0;
     final Rect bubbleRect = Rect.fromCenter(
       center: midpoint,
@@ -431,7 +390,6 @@ class ConnectionPainter extends CustomPainter {
     canvas.drawRect(bubbleRect, backgroundPaint);
     canvas.drawRect(bubbleRect, borderPaint);
 
-    // Prepare text painter for value
     final textSpan = TextSpan(
       text: displayValue,
       style: TextStyle(
@@ -448,7 +406,6 @@ class ConnectionPainter extends CustomPainter {
 
     textPainter.layout();
 
-    // Center text in the bubble
     textPainter.paint(
       canvas,
       Offset(

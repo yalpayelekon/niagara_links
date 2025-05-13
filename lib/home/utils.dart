@@ -292,7 +292,6 @@ List<ComponentType> getCompatibleTypes(ComponentType currentType) {
   // Standard types
   List<String> compatibleTypeStrings = [];
 
-  // Group types by their port structure for compatibility
   if (currentType.type == ComponentType.AND_GATE ||
       currentType.type == ComponentType.OR_GATE ||
       currentType.type == ComponentType.XOR_GATE) {
@@ -349,7 +348,6 @@ List<ComponentType> getCompatibleTypes(ComponentType currentType) {
     ];
   }
 
-  // Convert string types to ComponentType objects
   return compatibleTypeStrings
       .map((typeString) => ComponentType(typeString))
       .toList();

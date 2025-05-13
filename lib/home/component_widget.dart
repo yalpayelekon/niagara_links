@@ -331,7 +331,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
                   constraints: BoxConstraints.tightFor(width: 24, height: 24),
                   padding: EdgeInsets.zero,
                   onPressed: () {
-                    // Execute the action
                     widget.onValueChanged(
                         widget.component.id, action.index, null);
                   },
@@ -457,7 +456,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
     Component component = widget.component;
 
     bool canEdit =
-        property.isInput && component.inputConnections[property.index] == null;
+        !property.isInput && component.inputConnections[property.index] == null;
 
     switch (property.type.type) {
       case PortType.BOOLEAN:

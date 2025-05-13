@@ -103,7 +103,6 @@ class _FlowScreenState extends State<FlowScreen> {
 
     for (var entry in _componentPositions.entries) {
       final position = entry.value;
-      //final componentId = entry.key;
 
       const estimatedWidth = 180.0; // 160 width + 20 padding
       const estimatedHeight = 120.0;
@@ -172,11 +171,7 @@ class _FlowScreenState extends State<FlowScreen> {
     }
   }
 
-// flow_screen.dart (partial update for component creation)
-// Only showing the updated parts for component creation
-
   void _initializeComponents() {
-    // Add rectangular component from our example
     final rectangle = RectangleComponent(
       id: 'Rectangle',
     );
@@ -184,7 +179,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[rectangle.id] = const Offset(350, 200);
     _componentKeys[rectangle.id] = GlobalKey();
 
-    // Add some ramp components similar to the example
     final ramp1 = RampComponent(
       id: 'Ramp 1',
     );
@@ -199,7 +193,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[ramp2.id] = const Offset(100, 250);
     _componentKeys[ramp2.id] = GlobalKey();
 
-    // Standard components for testing
     final numericWritable = PointComponent(
       id: 'Numeric Writable',
       type: ComponentType(ComponentType.NUMERIC_WRITABLE),
@@ -208,8 +201,6 @@ class _FlowScreenState extends State<FlowScreen> {
     _componentPositions[numericWritable.id] = const Offset(600, 200);
     _componentKeys[numericWritable.id] = GlobalKey();
 
-    // Setup initial connections to match the example image
-    // Connect Ramp 1 output to Rectangle length
     _flowManager.createConnection(
       ramp1.id, // Ramp 1
       0, // Output property
@@ -217,7 +208,6 @@ class _FlowScreenState extends State<FlowScreen> {
       0, // Length property
     );
 
-    // Connect Ramp 2 output to Rectangle width
     _flowManager.createConnection(
       ramp2.id, // Ramp 2
       0, // Output property
@@ -225,7 +215,6 @@ class _FlowScreenState extends State<FlowScreen> {
       1, // Width property
     );
 
-    // Connect Rectangle detected topic to Numeric Writable
     _flowManager.createConnection(
       rectangle.id, // Rectangle
       3, // Detected topic
@@ -305,7 +294,6 @@ class _FlowScreenState extends State<FlowScreen> {
       String componentId, int slotIndex, dynamic newValue) {
     Component? component = _flowManager.findComponentById(componentId);
     if (component != null) {
-      // Get the slot by index
       Slot? slot = component.getSlotByIndex(slotIndex);
 
       if (slot != null) {
@@ -439,7 +427,6 @@ class _FlowScreenState extends State<FlowScreen> {
               return null;
             },
           ),
-          // For Delete action:
           DeleteIntent: CallbackAction<DeleteIntent>(
             onInvoke: (DeleteIntent intent) {
               if (_selectedComponents.isNotEmpty) {
@@ -471,7 +458,6 @@ class _FlowScreenState extends State<FlowScreen> {
               return null;
             },
           ),
-
           MoveDownIntent: CallbackAction<MoveDownIntent>(
             onInvoke: (MoveDownIntent intent) {
               if (_selectedComponents.isNotEmpty) {
@@ -799,8 +785,7 @@ class _FlowScreenState extends State<FlowScreen> {
                                       component: component,
                                       isSelected: _selectedComponents
                                           .contains(component),
-                                      widgetKey: _componentKeys[component.id] ??
-                                          GlobalKey(),
+                                      widgetKey: GlobalKey(),
                                       position:
                                           _componentPositions[component.id] ??
                                               Offset.zero,
@@ -811,11 +796,9 @@ class _FlowScreenState extends State<FlowScreen> {
                                     ),
                                   ),
                                   onDragStarted: () {
-                                    // Store the original position when drag starts
                                     _dragStartPosition =
                                         _componentPositions[component.id];
                                   },
-                                  // In the Draggable widget for components, update onDragEnd:
                                   onDragEnd: (details) {
                                     final RenderBox? viewerChildRenderBox =
                                         _interactiveViewerChildKey
@@ -1219,7 +1202,6 @@ class _FlowScreenState extends State<FlowScreen> {
   void _handleEditComponent(BuildContext context, Component component) {
     TextEditingController nameController =
         TextEditingController(text: component.id);
-    ComponentType selectedType = component.type;
 
     showDialog(
       context: context,
@@ -1235,26 +1217,6 @@ class _FlowScreenState extends State<FlowScreen> {
                   decoration:
                       const InputDecoration(labelText: 'Component Name'),
                   autofocus: true,
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<ComponentType>(
-                  value: selectedType,
-                  decoration: const InputDecoration(
-                    labelText: 'Component Type',
-                  ),
-                  items: getCompatibleTypes(component.type).map((type) {
-                    return DropdownMenuItem<ComponentType>(
-                      value: type,
-                      child: Text(getNameForComponentType(type)),
-                    );
-                  }).toList(),
-                  onChanged: (ComponentType? value) {
-                    if (value != null) {
-                      setState(() {
-                        selectedType = value;
-                      });
-                    }
-                  },
                 ),
               ],
             ),
@@ -1316,16 +1278,13 @@ class _FlowScreenState extends State<FlowScreen> {
       newName = '${_clipboardComponent!.id} (Copy $counter)';
     }
 
-    // Create a new component of the same type using the factory method
     Component newComponent = _flowManager.createComponentByType(
         newName, _clipboardComponent!.type.type);
 
-    // Copy values from properties that don't have input connections
     for (var sourceProperty in _clipboardComponent!.properties) {
       if (sourceProperty.isInput &&
           !_clipboardComponent!.inputConnections
               .containsKey(sourceProperty.index)) {
-        // Find the matching property in the new component
         for (var targetProperty in newComponent.properties) {
           if (targetProperty.index == sourceProperty.index) {
             targetProperty.value = sourceProperty.value;

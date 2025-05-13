@@ -13,7 +13,6 @@ class LogicComponent extends Component {
   }
 
   void _setupPorts() {
-    // Setup properties based on component type
     switch (type.type) {
       case ComponentType.AND_GATE:
       case ComponentType.OR_GATE:
