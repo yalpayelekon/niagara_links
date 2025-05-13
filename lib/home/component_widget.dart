@@ -17,6 +17,7 @@ class ComponentWidget extends StatefulWidget {
   final Offset position;
   final bool isSelected;
   final double width;
+  final double height;
   final Function(String, int, dynamic) onValueChanged;
   final Function(SlotDragInfo) onSlotDragStarted;
   final Function(SlotDragInfo) onSlotDragAccepted;
@@ -29,6 +30,7 @@ class ComponentWidget extends StatefulWidget {
     required this.widgetKey,
     required this.position,
     required this.width,
+    required this.height,
     required this.onValueChanged,
     required this.onSlotDragStarted,
     required this.onSlotDragAccepted,
@@ -42,7 +44,6 @@ class ComponentWidget extends StatefulWidget {
 class _ComponentWidgetState extends State<ComponentWidget> {
   static const double itemExternalPadding = 8.0;
   static const double itemTitleSectionHeight = 28.0;
-  static const double rowHeight = 36.0;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +99,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
                   ],
                 ),
               ),
-              _buildResizeHandle(), // Add the resize handle
+              _buildResizeHandle(),
             ],
           ),
         ],
@@ -106,11 +107,10 @@ class _ComponentWidgetState extends State<ComponentWidget> {
     );
   }
 
-  // Update the _buildTitleSection to use the dynamic width
   Widget _buildTitleSection() {
     return SizedBox(
       height: itemTitleSectionHeight,
-      width: widget.width, // Use the provided width
+      width: widget.width,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -148,12 +148,10 @@ class _ComponentWidgetState extends State<ComponentWidget> {
     );
   }
 
-  // Add the resize handle widget
   Widget _buildResizeHandle() {
     return GestureDetector(
       onHorizontalDragUpdate: (details) {
         double newWidth = widget.width + details.delta.dx;
-        // Set a minimum width
         if (newWidth >= 100.0) {
           widget.onWidthChanged(widget.component.id, newWidth);
         }
@@ -162,7 +160,7 @@ class _ComponentWidgetState extends State<ComponentWidget> {
         cursor: SystemMouseCursors.resizeLeftRight,
         child: Container(
           width: 8.0,
-          height: 200.0, // Approximate height for the component
+          height: widget.height,
           color: Colors.transparent,
           child: Center(
             child: Container(

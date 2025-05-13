@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:niagara_links/home/grid_painter.dart';
+import 'package:niagara_links/home/paste_special_dialog.dart';
 import 'package:niagara_links/home/resize_component_command.dart';
 import 'package:niagara_links/models/command_history.dart';
 import 'package:niagara_links/models/component.dart';
@@ -752,6 +753,8 @@ class _FlowScreenState extends State<FlowScreen> {
                                     color: Colors.transparent,
                                     child: ComponentWidget(
                                       component: component,
+                                      height:
+                                          component.allSlots.length * rowHeight,
                                       isSelected: _selectedComponents
                                           .contains(component),
                                       widgetKey: _componentKeys[component.id] ??
@@ -772,6 +775,8 @@ class _FlowScreenState extends State<FlowScreen> {
                                     opacity: 0.3,
                                     child: ComponentWidget(
                                       component: component,
+                                      height:
+                                          component.allSlots.length * rowHeight,
                                       isSelected: _selectedComponents
                                           .contains(component),
                                       widgetKey: GlobalKey(),
@@ -876,6 +881,8 @@ class _FlowScreenState extends State<FlowScreen> {
                                     },
                                     child: ComponentWidget(
                                       component: component,
+                                      height:
+                                          component.allSlots.length * rowHeight,
                                       width: _componentWidths[component.id] ??
                                           160.0,
                                       onWidthChanged: _handleComponentResize,
@@ -991,16 +998,6 @@ class _FlowScreenState extends State<FlowScreen> {
             ],
           ),
         ),
-        PopupMenuItem(
-          value: 'clear-canvas',
-          child: Row(
-            children: const [
-              Icon(Icons.clear, size: 18, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Clear Canvas', style: TextStyle(color: Colors.red)),
-            ],
-          ),
-        ),
       ],
     ).then((value) {
       if (value == null) return;
@@ -1019,14 +1016,6 @@ class _FlowScreenState extends State<FlowScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Select all functionality coming soon'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-          break;
-        case 'clear-canvas':
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Clear canvas functionality coming soon'),
               duration: Duration(seconds: 1),
             ),
           );
@@ -1133,16 +1122,9 @@ class _FlowScreenState extends State<FlowScreen> {
         }
       }
     }
-
-    _updateCanvasSize();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Pasted ${_clipboardComponents.length} component(s) × $numberOfCopies'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    setState(() {
+      _updateCanvasSize();
+    });
   }
 
   void _showAddComponentDialogAtPosition(Offset position) {
@@ -1473,13 +1455,6 @@ class _FlowScreenState extends State<FlowScreen> {
     if (_clipboardComponents.isNotEmpty) {
       _clipboardComponentPosition = _clipboardPositions.first;
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copied ${_clipboardComponents.length} component(s)'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
   }
 
   void _handleDeleteComponent(Component component) {
@@ -1511,91 +1486,77 @@ class _FlowScreenState extends State<FlowScreen> {
     _clipboardPositions = [_componentPositions[component.id] ?? Offset.zero];
     _clipboardConnections = [];
     _clipboardComponentPosition = _componentPositions[component.id];
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copied ${component.id}'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
   }
 
   void _handlePasteComponent(Offset position) {
     if (_clipboardComponents.isEmpty) return;
 
-    setState(() {
-      Map<String, String> idMap = {};
+    Map<String, String> idMap = {};
 
-      for (int i = 0; i < _clipboardComponents.length; i++) {
-        var originalComponent = _clipboardComponents[i];
-        var originalPosition = _clipboardPositions[i];
+    for (int i = 0; i < _clipboardComponents.length; i++) {
+      var originalComponent = _clipboardComponents[i];
+      var originalPosition = _clipboardPositions[i];
 
-        Offset relativeToPastePoint = originalPosition - _clipboardPositions[0];
-        Offset newPosition = position + relativeToPastePoint;
+      Offset relativeToPastePoint = originalPosition - _clipboardPositions[0];
+      Offset newPosition = position + relativeToPastePoint;
 
-        String newName = '${originalComponent.id} (Copy)';
-        int counter = 1;
-        while (_flowManager.components.any((comp) => comp.id == newName)) {
-          counter++;
-          newName = '${originalComponent.id} (Copy $counter)';
-        }
+      String newName = '${originalComponent.id} (Copy)';
+      int counter = 1;
+      while (_flowManager.components.any((comp) => comp.id == newName)) {
+        counter++;
+        newName = '${originalComponent.id} (Copy $counter)';
+      }
 
-        Component newComponent = _flowManager.createComponentByType(
-            newName, originalComponent.type.type);
+      Component newComponent = _flowManager.createComponentByType(
+          newName, originalComponent.type.type);
 
-        for (var sourceProperty in originalComponent.properties) {
-          if (!originalComponent.inputConnections
-              .containsKey(sourceProperty.index)) {
-            for (var targetProperty in newComponent.properties) {
-              if (targetProperty.index == sourceProperty.index) {
-                targetProperty.value = sourceProperty.value;
-                break;
-              }
+      for (var sourceProperty in originalComponent.properties) {
+        if (!originalComponent.inputConnections
+            .containsKey(sourceProperty.index)) {
+          for (var targetProperty in newComponent.properties) {
+            if (targetProperty.index == sourceProperty.index) {
+              targetProperty.value = sourceProperty.value;
+              break;
             }
           }
         }
+      }
 
-        final newKey = GlobalKey();
+      final newKey = GlobalKey();
 
-        Map<String, dynamic> state = {
-          'position': newPosition,
-          'key': newKey,
-          'positions': _componentPositions,
-          'keys': _componentKeys,
-        };
+      Map<String, dynamic> state = {
+        'position': newPosition,
+        'key': newKey,
+        'positions': _componentPositions,
+        'keys': _componentKeys,
+      };
 
-        idMap[originalComponent.id] = newComponent.id;
-        final command = AddComponentCommand(_flowManager, newComponent, state);
+      idMap[originalComponent.id] = newComponent.id;
+      final command = AddComponentCommand(_flowManager, newComponent, state);
+      _commandHistory.execute(command);
+
+      _componentPositions[newComponent.id] = newPosition;
+      _componentKeys[newComponent.id] = newKey;
+    }
+
+    for (var connection in _clipboardConnections) {
+      String? newFromId = idMap[connection.fromComponentId];
+      String? newToId = idMap[connection.toComponentId];
+
+      if (newFromId != null && newToId != null) {
+        final command = CreateConnectionCommand(
+          _flowManager,
+          newFromId,
+          connection.fromPortIndex,
+          newToId,
+          connection.toPortIndex,
+        );
         _commandHistory.execute(command);
-
-        _componentPositions[newComponent.id] = newPosition;
-        _componentKeys[newComponent.id] = newKey;
       }
-
-      for (var connection in _clipboardConnections) {
-        String? newFromId = idMap[connection.fromComponentId];
-        String? newToId = idMap[connection.toComponentId];
-
-        if (newFromId != null && newToId != null) {
-          final command = CreateConnectionCommand(
-            _flowManager,
-            newFromId,
-            connection.fromPortIndex,
-            newToId,
-            connection.toPortIndex,
-          );
-          _commandHistory.execute(command);
-        }
-      }
-
+    }
+    setState(() {
       _updateCanvasSize();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Pasted ${_clipboardComponents.length} component(s)'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   void _handleMoveComponentDown(Component component) {
@@ -1668,98 +1629,5 @@ class _FlowScreenState extends State<FlowScreen> {
         _updateCanvasSize();
       });
     }
-  }
-}
-
-class PasteSpecialDialog extends StatefulWidget {
-  final Function(int, bool, bool) onPasteConfirmed;
-
-  const PasteSpecialDialog({
-    super.key,
-    required this.onPasteConfirmed,
-  });
-
-  @override
-  State<PasteSpecialDialog> createState() => _PasteSpecialDialogState();
-}
-
-class _PasteSpecialDialogState extends State<PasteSpecialDialog> {
-  int numberOfCopies = 1;
-  bool keepAllLinks = true;
-  bool keepAllRelations = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Row(
-        children: [
-          const Icon(Icons.copy, size: 20),
-          const SizedBox(width: 8),
-          const Text('Paste Special'),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text('Number of copies'),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 50,
-                child: TextField(
-                  textAlign: TextAlign.center,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 6, vertical: 0),
-                    border: OutlineInputBorder(),
-                  ),
-                  controller:
-                      TextEditingController(text: numberOfCopies.toString()),
-                  onChanged: (value) {
-                    int? parsedValue = int.tryParse(value);
-                    if (parsedValue != null && parsedValue > 0) {
-                      setState(() {
-                        numberOfCopies = parsedValue;
-                      });
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Checkbox(
-                value: keepAllLinks,
-                onChanged: (value) {
-                  setState(() {
-                    keepAllLinks = value ?? true;
-                  });
-                },
-              ),
-              const Text('Keep all links'),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            widget.onPasteConfirmed(
-                numberOfCopies, keepAllLinks, keepAllRelations);
-            Navigator.of(context).pop();
-          },
-          child: const Text('OK'),
-        ),
-      ],
-    );
   }
 }

@@ -6,6 +6,8 @@ import '../models/port_type.dart';
 import '../models/ramp_component.dart';
 import '../models/rectangle.dart';
 
+const double rowHeight = 36.0;
+
 String getComponentSymbol(Component component) {
   // Custom components
   if (component.type.type == RectangleComponent.RECTANGLE) {
