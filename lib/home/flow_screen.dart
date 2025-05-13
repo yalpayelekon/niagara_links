@@ -430,16 +430,14 @@ class _FlowScreenState extends State<FlowScreen> {
           ),
           DeleteIntent: CallbackAction<DeleteIntent>(
             onInvoke: (DeleteIntent intent) {
-              if (_selectedComponents.isNotEmpty) {
-                // Handle multiple deletion
-                setState(() {
+              setState(() {
+                if (_selectedComponents.isNotEmpty) {
                   for (var component in _selectedComponents.toList()) {
                     _handleDeleteComponent(component);
                   }
                   _selectedComponents.clear();
-                });
-              }
-              return null;
+                }
+              });
             },
           ),
           CopyIntent: CallbackAction<CopyIntent>(
