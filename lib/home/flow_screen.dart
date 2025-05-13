@@ -16,6 +16,7 @@ import '../models/port.dart';
 import '../models/port_type.dart';
 import '../models/ramp_component.dart';
 import '../models/rectangle.dart';
+import 'handlers.dart';
 import 'intents.dart';
 import 'manager.dart';
 import 'component_widget.dart';
@@ -37,7 +38,7 @@ class _FlowScreenState extends State<FlowScreen> {
 
   final Map<String, Offset> _componentPositions = {};
   final Map<String, GlobalKey> _componentKeys = {};
-
+  late FlowHandlers _flowHandlers;
   Offset? _selectionBoxStart;
   Offset? _selectionBoxEnd;
   bool _isDraggingSelectionBox = false;
@@ -63,6 +64,26 @@ class _FlowScreenState extends State<FlowScreen> {
   void initState() {
     super.initState();
     _transformationController.value = Matrix4.identity();
+
+    _flowHandlers = FlowHandlers(
+      flowManager: _flowManager,
+      commandHistory: _commandHistory,
+      componentPositions: _componentPositions,
+      componentKeys: _componentKeys,
+      componentWidths: _componentWidths,
+      setState: setState,
+      updateCanvasSize: _updateCanvasSize,
+      selectedComponents: _selectedComponents,
+      clipboardComponents: _clipboardComponents,
+      clipboardPositions: _clipboardPositions,
+      clipboardConnections: _clipboardConnections,
+      setClipboardComponentPosition: (position) {
+        setState(() {
+          _clipboardComponentPosition = position;
+        });
+      },
+    );
+
     _initializeComponents();
   }
 
@@ -167,17 +188,7 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _handleComponentResize(String componentId, double newWidth) {
-    final oldWidth = _componentWidths[componentId] ?? 160.0;
-
-    setState(() {
-      final command = ResizeComponentCommand(
-        componentId,
-        newWidth,
-        oldWidth,
-        _componentWidths,
-      );
-      _commandHistory.execute(command);
-    });
+    _flowHandlers.handleComponentResize(componentId, newWidth);
   }
 
   void _addNewComponent(ComponentType type, {Offset? clickPosition}) {
@@ -245,33 +256,7 @@ class _FlowScreenState extends State<FlowScreen> {
 
   void _handleValueChanged(
       String componentId, int slotIndex, dynamic newValue) {
-    Component? component = _flowManager.findComponentById(componentId);
-    if (component != null) {
-      Slot? slot = component.getSlotByIndex(slotIndex);
-
-      if (slot != null) {
-        dynamic oldValue;
-        if (slot is Property) {
-          oldValue = slot.value;
-        } else if (slot is Action) {
-          ActionSlot action = slot as ActionSlot;
-          oldValue = action.parameter;
-        }
-
-        if (oldValue != newValue) {
-          setState(() {
-            final command = UpdatePortValueCommand(
-              _flowManager,
-              componentId,
-              slotIndex,
-              newValue,
-              oldValue,
-            );
-            _commandHistory.execute(command);
-          });
-        }
-      }
-    }
+    _flowHandlers.handleValueChanged(componentId, slotIndex, newValue);
   }
 
   Offset? getPosition(Offset globalPosition) {
@@ -900,44 +885,17 @@ class _FlowScreenState extends State<FlowScreen> {
         PopupMenuItem(
           value: 'add-component',
           child: Row(
-            children: const [
-              Icon(Icons.add_box, size: 18),
-              SizedBox(width: 8),
-              Text('Add Component'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'paste',
-          enabled: _clipboardComponents.isNotEmpty,
-          child: Row(
-            children: [
-              Icon(Icons.paste,
-                  size: 18,
-                  color: _clipboardComponents.isNotEmpty ? null : Colors.grey),
-              const SizedBox(width: 8),
-              Text('Paste',
-                  style: TextStyle(
-                      color: _clipboardComponents.isNotEmpty
-                          ? null
-                          : Colors.grey)),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'paste-special',
-          enabled: _clipboardComponents.isNotEmpty,
-          child: Row(
             children: [
               Icon(Icons.paste_outlined,
                   size: 18,
                   color: _clipboardComponents.isNotEmpty ? null : Colors.grey),
               const SizedBox(width: 8),
-              Text('Paste Special',
-                  style: TextStyle(
-                      color: _clipboardComponents.isNotEmpty
-                          ? null
-                          : Colors.grey)),
+              Text(
+                'Paste Special',
+                style: TextStyle(
+                    color:
+                        _clipboardComponents.isNotEmpty ? null : Colors.grey),
+              ),
             ],
           ),
         ),
@@ -975,6 +933,7 @@ class _FlowScreenState extends State<FlowScreen> {
     });
   }
 
+  // Replace with a call to the handler method
   void _showPasteSpecialDialog(Offset pastePosition) {
     if (_clipboardComponents.isEmpty) return;
 
@@ -983,7 +942,7 @@ class _FlowScreenState extends State<FlowScreen> {
       builder: (BuildContext context) {
         return PasteSpecialDialog(
           onPasteConfirmed: (numberOfCopies, keepAllLinks, keepAllRelations) {
-            _handlePasteSpecialComponent(
+            _flowHandlers.handlePasteSpecialComponent(
                 pastePosition, numberOfCopies, keepAllLinks);
           },
         );
@@ -991,91 +950,8 @@ class _FlowScreenState extends State<FlowScreen> {
     );
   }
 
-  void _handlePasteSpecialComponent(
-      Offset position, int numberOfCopies, bool keepAllLinks) {
-    if (_clipboardComponents.isEmpty) return;
-
-    const double offsetX = 50.0;
-    const double offsetY = 50.0;
-
-    for (int copyIndex = 0; copyIndex < numberOfCopies; copyIndex++) {
-      final double baseOffsetX = copyIndex * offsetX;
-      final double baseOffsetY = copyIndex * offsetY;
-
-      Map<String, String> idMap = {};
-
-      for (int i = 0; i < _clipboardComponents.length; i++) {
-        var originalComponent = _clipboardComponents[i];
-        var originalPosition = _clipboardPositions[i];
-
-        Offset relativeToPastePoint = originalPosition - _clipboardPositions[0];
-
-        Offset newPosition = Offset(
-          position.dx + baseOffsetX + relativeToPastePoint.dx,
-          position.dy + baseOffsetY + relativeToPastePoint.dy,
-        );
-
-        String newName = '${originalComponent.id} (Copy)';
-        int counter = 1;
-        while (_flowManager.components.any((comp) => comp.id == newName)) {
-          counter++;
-          newName = '${originalComponent.id} (Copy $counter)';
-        }
-
-        Component newComponent = _flowManager.createComponentByType(
-            newName, originalComponent.type.type);
-
-        for (var sourceProperty in originalComponent.properties) {
-          if (!originalComponent.inputConnections
-                  .containsKey(sourceProperty.index) ||
-              !keepAllLinks) {
-            for (var targetProperty in newComponent.properties) {
-              if (targetProperty.index == sourceProperty.index) {
-                targetProperty.value = sourceProperty.value;
-                break;
-              }
-            }
-          }
-        }
-
-        final newKey = GlobalKey();
-
-        Map<String, dynamic> state = {
-          'position': newPosition,
-          'key': newKey,
-          'positions': _componentPositions,
-          'keys': _componentKeys,
-        };
-
-        idMap[originalComponent.id] = newComponent.id;
-        final command = AddComponentCommand(_flowManager, newComponent, state);
-        _commandHistory.execute(command);
-
-        _componentPositions[newComponent.id] = newPosition;
-        _componentKeys[newComponent.id] = newKey;
-      }
-
-      if (keepAllLinks) {
-        for (var connection in _clipboardConnections) {
-          String? newFromId = idMap[connection.fromComponentId];
-          String? newToId = idMap[connection.toComponentId];
-
-          if (newFromId != null && newToId != null) {
-            final command = CreateConnectionCommand(
-              _flowManager,
-              newFromId,
-              connection.fromPortIndex,
-              newToId,
-              connection.toPortIndex,
-            );
-            _commandHistory.execute(command);
-          }
-        }
-      }
-    }
-    setState(() {
-      _updateCanvasSize();
-    });
+  void _handlePasteComponent(Offset position) {
+    _flowHandlers.handlePasteComponent(position);
   }
 
   void _showAddComponentDialogAtPosition(Offset position) {
@@ -1264,321 +1140,34 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _handleEditComponent(BuildContext context, Component component) {
-    TextEditingController nameController =
-        TextEditingController(text: component.id);
-
-    Map<int, TextEditingController> propertyControllers = {};
-    List<Property> editableProperties = component.properties
-        .where((prop) =>
-            !prop.isInput &&
-            !component.inputConnections.containsKey(prop.index))
-        .toList();
-
-    for (var property in editableProperties) {
-      if (property.type.type != PortType.BOOLEAN) {
-        String valueText = property.value?.toString() ?? '';
-        propertyControllers[property.index] =
-            TextEditingController(text: valueText);
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Edit Component'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration:
-                        const InputDecoration(labelText: 'Component Name'),
-                    autofocus: true,
-                  ),
-                  const SizedBox(height: 16),
-                  if (editableProperties.isNotEmpty) ...[
-                    const Text(
-                      'Properties',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    ...editableProperties.map((property) {
-                      if (property.type.type == PortType.BOOLEAN) {
-                        return const SizedBox.shrink();
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: TextField(
-                          controller: propertyControllers[property.index],
-                          decoration: InputDecoration(
-                            labelText: '${property.name} Value',
-                            helperText: 'Type: ${property.type.type}',
-                          ),
-                          keyboardType: property.type.type == PortType.NUMERIC
-                              ? TextInputType.number
-                              : TextInputType.text,
-                        ),
-                      );
-                    }),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  String newName = nameController.text.trim();
-                  if (newName.isNotEmpty && newName != component.id) {
-                    component.id = newName;
-                  }
-
-                  for (var property in editableProperties) {
-                    if (property.type.type != PortType.BOOLEAN &&
-                        propertyControllers.containsKey(property.index)) {
-                      String newValueText =
-                          propertyControllers[property.index]!.text;
-
-                      dynamic newValue;
-
-                      if (property.type.type == PortType.NUMERIC) {
-                        newValue = num.tryParse(newValueText) ?? property.value;
-                      } else if (property.type.type == PortType.STRING) {
-                        newValue = newValueText;
-                      } else if (property.type.type == PortType.ANY) {
-                        newValue = num.tryParse(newValueText);
-                        newValue ??= newValueText;
-                      }
-
-                      if (newValue != property.value) {
-                        _handleValueChanged(
-                            component.id, property.index, newValue);
-                      }
-                    }
-                  }
-
-                  Navigator.pop(context);
-                  setState(() {});
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  void _handleCopyMultipleComponents() {
-    if (_selectedComponents.isEmpty) return;
-
-    _clipboardComponents = [];
-    _clipboardPositions = [];
-    _clipboardConnections = [];
-
-    Map<String, int> componentIndexMap = {};
-
-    for (int i = 0; i < _selectedComponents.length; i++) {
-      var component = _selectedComponents.elementAt(i);
-      _clipboardComponents.add(component);
-      _clipboardPositions.add(_componentPositions[component.id] ?? Offset.zero);
-      componentIndexMap[component.id] = i;
-    }
-
-    for (var connection in _flowManager.connections) {
-      bool fromSelected =
-          componentIndexMap.containsKey(connection.fromComponentId);
-      bool toSelected = componentIndexMap.containsKey(connection.toComponentId);
-
-      if (fromSelected && toSelected) {
-        _clipboardConnections.add(connection);
-      }
-    }
-
-    if (_clipboardComponents.isNotEmpty) {
-      _clipboardComponentPosition = _clipboardPositions.first;
-    }
+    _flowHandlers.handleEditComponent(context, component);
   }
 
   void _handleDeleteComponent(Component component) {
-    final affectedConnections = _flowManager.connections
-        .where((connection) =>
-            connection.fromComponentId == component.id ||
-            connection.toComponentId == component.id)
-        .toList();
-
-    setState(() {
-      final oldPosition = _componentPositions[component.id] ?? Offset.zero;
-      final oldKey = _componentKeys[component.id];
-
-      final command = RemoveComponentCommand(
-        _flowManager,
-        component,
-        oldPosition,
-        oldKey,
-        affectedConnections,
-      );
-      _commandHistory.execute(command);
-
-      _updateCanvasSize();
-    });
+    _flowHandlers.handleDeleteComponent(component);
   }
 
   void _handleCopyComponent(Component component) {
-    _clipboardComponents = [component];
-    _clipboardPositions = [_componentPositions[component.id] ?? Offset.zero];
-    _clipboardConnections = [];
-    _clipboardComponentPosition = _componentPositions[component.id];
+    _flowHandlers.handleCopyComponent(component);
   }
 
-  void _handlePasteComponent(Offset position) {
-    if (_clipboardComponents.isEmpty) return;
-
-    Map<String, String> idMap = {};
-
-    for (int i = 0; i < _clipboardComponents.length; i++) {
-      var originalComponent = _clipboardComponents[i];
-      var originalPosition = _clipboardPositions[i];
-
-      Offset relativeToPastePoint = originalPosition - _clipboardPositions[0];
-      Offset newPosition = position + relativeToPastePoint;
-
-      String newName = '${originalComponent.id} (Copy)';
-      int counter = 1;
-      while (_flowManager.components.any((comp) => comp.id == newName)) {
-        counter++;
-        newName = '${originalComponent.id} (Copy $counter)';
-      }
-
-      Component newComponent = _flowManager.createComponentByType(
-          newName, originalComponent.type.type);
-
-      for (var sourceProperty in originalComponent.properties) {
-        if (!originalComponent.inputConnections
-            .containsKey(sourceProperty.index)) {
-          for (var targetProperty in newComponent.properties) {
-            if (targetProperty.index == sourceProperty.index) {
-              targetProperty.value = sourceProperty.value;
-              break;
-            }
-          }
-        }
-      }
-
-      final newKey = GlobalKey();
-
-      Map<String, dynamic> state = {
-        'position': newPosition,
-        'key': newKey,
-        'positions': _componentPositions,
-        'keys': _componentKeys,
-      };
-
-      idMap[originalComponent.id] = newComponent.id;
-      final command = AddComponentCommand(_flowManager, newComponent, state);
-      _commandHistory.execute(command);
-
-      _componentPositions[newComponent.id] = newPosition;
-      _componentKeys[newComponent.id] = newKey;
-    }
-
-    for (var connection in _clipboardConnections) {
-      String? newFromId = idMap[connection.fromComponentId];
-      String? newToId = idMap[connection.toComponentId];
-
-      if (newFromId != null && newToId != null) {
-        final command = CreateConnectionCommand(
-          _flowManager,
-          newFromId,
-          connection.fromPortIndex,
-          newToId,
-          connection.toPortIndex,
-        );
-        _commandHistory.execute(command);
-      }
-    }
-    setState(() {
-      _updateCanvasSize();
-    });
+  void _handleCopyMultipleComponents() {
+    _flowHandlers.handleCopyMultipleComponents();
   }
 
   void _handleMoveComponentDown(Component component) {
-    Offset? canvasPosition = _componentPositions[component.id];
-    if (canvasPosition != null) {
-      canvasPosition = Offset(canvasPosition.dx, canvasPosition.dy + 20);
-      setState(() {
-        _componentPositions[component.id] = canvasPosition!;
-        final command = MoveComponentCommand(
-          component.id,
-          canvasPosition,
-          _componentPositions[component.id]!,
-          _componentPositions,
-        );
-        _commandHistory.execute(command);
-        _updateCanvasSize();
-      });
-    }
+    _flowHandlers.handleMoveComponentDown(component);
   }
 
   void _handleMoveComponentUp(Component component) {
-    Offset? canvasPosition = _componentPositions[component.id];
-    if (canvasPosition != null) {
-      canvasPosition = Offset(canvasPosition.dx, canvasPosition.dy - 20);
-      setState(() {
-        _componentPositions[component.id] = canvasPosition!;
-        final command = MoveComponentCommand(
-          component.id,
-          canvasPosition,
-          _componentPositions[component.id]!,
-          _componentPositions,
-        );
-        _commandHistory.execute(command);
-        _updateCanvasSize();
-      });
-    }
+    _flowHandlers.handleMoveComponentUp(component);
   }
 
   void _handleMoveComponentLeft(Component component) {
-    Offset? canvasPosition = _componentPositions[component.id];
-    if (canvasPosition != null) {
-      canvasPosition = Offset(canvasPosition.dx - 20, canvasPosition.dy);
-      setState(() {
-        _componentPositions[component.id] = canvasPosition!;
-        final command = MoveComponentCommand(
-          component.id,
-          canvasPosition,
-          _componentPositions[component.id]!,
-          _componentPositions,
-        );
-        _commandHistory.execute(command);
-        _updateCanvasSize();
-      });
-    }
+    _flowHandlers.handleMoveComponentLeft(component);
   }
 
   void _handleMoveComponentRight(Component component) {
-    Offset? canvasPosition = _componentPositions[component.id];
-    if (canvasPosition != null) {
-      canvasPosition = Offset(canvasPosition.dx + 20, canvasPosition.dy);
-      setState(() {
-        _componentPositions[component.id] = canvasPosition!;
-        final command = MoveComponentCommand(
-          component.id,
-          canvasPosition,
-          _componentPositions[component.id]!,
-          _componentPositions,
-        );
-        _commandHistory.execute(command);
-        _updateCanvasSize();
-      });
-    }
+    _flowHandlers.handleMoveComponentRight(component);
   }
 }

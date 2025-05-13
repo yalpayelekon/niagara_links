@@ -9,8 +9,6 @@ import 'component_widget.dart';
 import 'command.dart';
 import 'resize_component_command.dart';
 
-/// This class contains handlers that were moved from flow_screen.dart
-/// to improve code organization and maintainability.
 class FlowHandlers {
   final FlowManager flowManager;
   final CommandHistory commandHistory;
@@ -87,51 +85,6 @@ class FlowHandlers {
         }
       }
     }
-  }
-
-  void handlePortDragStarted(SlotDragInfo slotInfo) {
-    // This method would typically set state variables in FlowScreen
-    // The implementation would need to be modified to communicate with FlowScreen
-  }
-
-  void handlePortDragAccepted(SlotDragInfo targetSlotInfo,
-      SlotDragInfo? currentDraggedPort, BuildContext context) {
-    if (currentDraggedPort != null) {
-      Component? sourceComponent =
-          flowManager.findComponentById(currentDraggedPort.componentId);
-      Component? targetComponent =
-          flowManager.findComponentById(targetSlotInfo.componentId);
-
-      if (sourceComponent != null && targetComponent != null) {
-        if (flowManager.canCreateConnection(
-            currentDraggedPort.componentId,
-            currentDraggedPort.slotIndex,
-            targetSlotInfo.componentId,
-            targetSlotInfo.slotIndex)) {
-          setState(() {
-            final command = CreateConnectionCommand(
-              flowManager,
-              currentDraggedPort.componentId,
-              currentDraggedPort.slotIndex,
-              targetSlotInfo.componentId,
-              targetSlotInfo.slotIndex,
-            );
-            commandHistory.execute(command);
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Cannot connect these slots - type mismatch or invalid connection'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    }
-
-    // This method needs to update state variables in FlowScreen
-    // The implementation would need to be modified to communicate with FlowScreen
   }
 
   void handleDeleteComponent(Component component) {
