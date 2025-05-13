@@ -112,7 +112,7 @@ class PointComponent extends Component {
 
       case ComponentType.BOOLEAN_POINT:
         properties.add(Property.withDefaultValue(
-            name: "Output",
+            name: "Input",
             index: 0,
             isInput: true,
             type: PortType(PortType.BOOLEAN)));
@@ -120,7 +120,7 @@ class PointComponent extends Component {
 
       case ComponentType.NUMERIC_POINT:
         properties.add(Property.withDefaultValue(
-            name: "Output",
+            name: "Input",
             index: 0,
             isInput: true,
             type: PortType(PortType.NUMERIC)));
@@ -128,7 +128,7 @@ class PointComponent extends Component {
 
       case ComponentType.STRING_POINT:
         properties.add(Property.withDefaultValue(
-            name: "Output",
+            name: "Input",
             index: 0,
             isInput: true,
             type: PortType(PortType.STRING)));

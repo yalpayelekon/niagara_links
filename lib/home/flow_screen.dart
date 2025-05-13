@@ -7,6 +7,9 @@ import 'package:niagara_links/home/resize_component_command.dart';
 import 'package:niagara_links/models/command_history.dart';
 import 'package:niagara_links/models/component.dart';
 import '../models/component_type.dart';
+import '../models/connection.dart';
+import '../models/logic_components.dart';
+import '../models/math_components.dart';
 import '../models/point_components.dart';
 import '../models/port.dart';
 import '../models/port_type.dart';
@@ -86,6 +89,9 @@ class _FlowScreenState extends State<FlowScreen> {
   static const double _canvasPadding = 100.0; // Padding around components
 
   Component? _clipboardComponent;
+  List<Component> _clipboardComponents = [];
+  List<Offset> _clipboardPositions = [];
+  List<Connection> _clipboardConnections = [];
   final Set<Component> _selectedComponents = {};
 
   @override
@@ -174,6 +180,22 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _initializeComponents() {
+    final numericWritable = PointComponent(
+      id: 'Numeric Writable',
+      type: ComponentType(ComponentType.NUMERIC_WRITABLE),
+    );
+    _flowManager.addComponent(numericWritable);
+    _componentPositions[numericWritable.id] = const Offset(500, 250);
+    _componentKeys[numericWritable.id] = GlobalKey();
+
+    final numericPoint = PointComponent(
+      id: 'Numeric Point',
+      type: ComponentType(ComponentType.NUMERIC_POINT),
+    );
+    _flowManager.addComponent(numericPoint);
+    _componentPositions[numericPoint.id] = const Offset(900, 250);
+    _componentKeys[numericPoint.id] = GlobalKey();
+
     _flowManager.recalculateAll();
     _updateCanvasSize();
     _commandHistory.clear();
@@ -409,21 +431,15 @@ class _FlowScreenState extends State<FlowScreen> {
                   _selectedComponents.clear();
                 }
               });
+              return null;
             },
           ),
           CopyIntent: CallbackAction<CopyIntent>(
             onInvoke: (CopyIntent intent) {
               if (_selectedComponents.length == 1) {
-                // Copy single component for now
                 _handleCopyComponent(_selectedComponents.first);
               } else if (_selectedComponents.isNotEmpty) {
-                // TODO: Implement multiple component copy
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Multiple copy not yet implemented'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
+                _handleCopyMultipleComponents();
               }
               return null;
             },
@@ -948,6 +964,21 @@ class _FlowScreenState extends State<FlowScreen> {
           ),
         ),
         PopupMenuItem(
+          value: 'paste-special',
+          enabled: _clipboardComponent != null,
+          child: Row(
+            children: [
+              Icon(Icons.paste_outlined,
+                  size: 18,
+                  color: _clipboardComponent != null ? null : Colors.grey),
+              const SizedBox(width: 8),
+              Text('Paste Special',
+                  style: TextStyle(
+                      color: _clipboardComponent != null ? null : Colors.grey)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
           value: 'select-all',
           child: Row(
             children: const [
@@ -978,6 +1009,9 @@ class _FlowScreenState extends State<FlowScreen> {
         case 'paste':
           _handlePasteComponent(canvasPosition);
           break;
+        case 'paste-special':
+          _showPasteSpecialDialog(canvasPosition);
+          break;
         case 'select-all':
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -996,6 +1030,116 @@ class _FlowScreenState extends State<FlowScreen> {
           break;
       }
     });
+  }
+
+  void _showPasteSpecialDialog(Offset pastePosition) {
+    if (_clipboardComponent == null) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return PasteSpecialDialog(
+          onPasteConfirmed: (numberOfCopies, keepAllLinks, keepAllRelations) {
+            _handlePasteSpecialComponent(
+                pastePosition, numberOfCopies, keepAllLinks);
+          },
+        );
+      },
+    );
+  }
+
+  void _handlePasteSpecialComponent(
+      Offset position, int numberOfCopies, bool keepAllLinks) {
+    if (_clipboardComponents.isEmpty) return;
+
+    const double offsetX = 50.0;
+    const double offsetY = 50.0;
+
+    for (int copyIndex = 0; copyIndex < numberOfCopies; copyIndex++) {
+      final double baseOffsetX = copyIndex * offsetX;
+      final double baseOffsetY = copyIndex * offsetY;
+
+      Map<String, String> idMap = {};
+
+      for (int i = 0; i < _clipboardComponents.length; i++) {
+        var originalComponent = _clipboardComponents[i];
+        var originalPosition = _clipboardPositions[i];
+
+        Offset relativeToPastePoint = originalPosition - _clipboardPositions[0];
+
+        Offset newPosition = Offset(
+          position.dx + baseOffsetX + relativeToPastePoint.dx,
+          position.dy + baseOffsetY + relativeToPastePoint.dy,
+        );
+
+        String newName = '${originalComponent.id} (Copy)';
+        int counter = 1;
+        while (_flowManager.components.any((comp) => comp.id == newName)) {
+          counter++;
+          newName = '${originalComponent.id} (Copy $counter)';
+        }
+
+        Component newComponent = _flowManager.createComponentByType(
+            newName, originalComponent.type.type);
+
+        for (var sourceProperty in originalComponent.properties) {
+          if (!originalComponent.inputConnections
+                  .containsKey(sourceProperty.index) ||
+              !keepAllLinks) {
+            for (var targetProperty in newComponent.properties) {
+              if (targetProperty.index == sourceProperty.index) {
+                targetProperty.value = sourceProperty.value;
+                break;
+              }
+            }
+          }
+        }
+
+        final newKey = GlobalKey();
+
+        Map<String, dynamic> state = {
+          'position': newPosition,
+          'key': newKey,
+          'positions': _componentPositions,
+          'keys': _componentKeys,
+        };
+
+        idMap[originalComponent.id] = newComponent.id;
+        final command = AddComponentCommand(_flowManager, newComponent, state);
+        _commandHistory.execute(command);
+
+        _componentPositions[newComponent.id] = newPosition;
+        _componentKeys[newComponent.id] = newKey;
+      }
+
+      if (keepAllLinks) {
+        for (var connection in _clipboardConnections) {
+          String? newFromId = idMap[connection.fromComponentId];
+          String? newToId = idMap[connection.toComponentId];
+
+          if (newFromId != null && newToId != null) {
+            final command = CreateConnectionCommand(
+              _flowManager,
+              newFromId,
+              connection.fromPortIndex,
+              newToId,
+              connection.toPortIndex,
+            );
+            _commandHistory.execute(command);
+          }
+        }
+      }
+    }
+
+    _updateCanvasSize();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Pasted ${_clipboardComponents.length} component(s) × $numberOfCopies'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _showAddComponentDialogAtPosition(Offset position) {
@@ -1167,7 +1311,11 @@ class _FlowScreenState extends State<FlowScreen> {
 
       switch (value) {
         case 'copy':
-          _handleCopyComponent(component);
+          if (_selectedComponents.length == 1) {
+            _handleCopyComponent(_selectedComponents.first);
+          } else if (_selectedComponents.isNotEmpty) {
+            _handleCopyMultipleComponents();
+          }
           break;
         case 'edit':
           _handleEditComponent(context, component);
@@ -1293,6 +1441,45 @@ class _FlowScreenState extends State<FlowScreen> {
     );
   }
 
+  void _handleCopyMultipleComponents() {
+    if (_selectedComponents.isEmpty) return;
+
+    _clipboardComponents = [];
+    _clipboardPositions = [];
+    _clipboardConnections = [];
+
+    Map<String, int> componentIndexMap = {};
+
+    for (int i = 0; i < _selectedComponents.length; i++) {
+      var component = _selectedComponents.elementAt(i);
+      _clipboardComponents.add(component);
+      _clipboardPositions.add(_componentPositions[component.id] ?? Offset.zero);
+      componentIndexMap[component.id] = i;
+    }
+
+    for (var connection in _flowManager.connections) {
+      bool fromSelected =
+          componentIndexMap.containsKey(connection.fromComponentId);
+      bool toSelected = componentIndexMap.containsKey(connection.toComponentId);
+
+      if (fromSelected && toSelected) {
+        _clipboardConnections.add(connection);
+      }
+    }
+
+    if (_clipboardComponents.isNotEmpty) {
+      _clipboardComponent = _clipboardComponents.first;
+      _clipboardComponentPosition = _clipboardPositions.first;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied ${_clipboardComponents.length} component(s)'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
   void _handleDeleteComponent(Component component) {
     final affectedConnections = _flowManager.connections
         .where((connection) =>
@@ -1318,8 +1505,12 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   void _handleCopyComponent(Component component) {
+    _clipboardComponents = [component];
+    _clipboardPositions = [_componentPositions[component.id] ?? Offset.zero];
+    _clipboardConnections = [];
     _clipboardComponent = component;
     _clipboardComponentPosition = _componentPositions[component.id];
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Copied ${component.id}'),
@@ -1446,5 +1637,98 @@ class _FlowScreenState extends State<FlowScreen> {
         _updateCanvasSize();
       });
     }
+  }
+}
+
+class PasteSpecialDialog extends StatefulWidget {
+  final Function(int, bool, bool) onPasteConfirmed;
+
+  const PasteSpecialDialog({
+    super.key,
+    required this.onPasteConfirmed,
+  });
+
+  @override
+  State<PasteSpecialDialog> createState() => _PasteSpecialDialogState();
+}
+
+class _PasteSpecialDialogState extends State<PasteSpecialDialog> {
+  int numberOfCopies = 1;
+  bool keepAllLinks = true;
+  bool keepAllRelations = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Icon(Icons.copy, size: 20),
+          const SizedBox(width: 8),
+          const Text('Paste Special'),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('Number of copies'),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 50,
+                child: TextField(
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                    border: OutlineInputBorder(),
+                  ),
+                  controller:
+                      TextEditingController(text: numberOfCopies.toString()),
+                  onChanged: (value) {
+                    int? parsedValue = int.tryParse(value);
+                    if (parsedValue != null && parsedValue > 0) {
+                      setState(() {
+                        numberOfCopies = parsedValue;
+                      });
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Checkbox(
+                value: keepAllLinks,
+                onChanged: (value) {
+                  setState(() {
+                    keepAllLinks = value ?? true;
+                  });
+                },
+              ),
+              const Text('Keep all links'),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            widget.onPasteConfirmed(
+                numberOfCopies, keepAllLinks, keepAllRelations);
+            Navigator.of(context).pop();
+          },
+          child: const Text('OK'),
+        ),
+      ],
+    );
   }
 }
