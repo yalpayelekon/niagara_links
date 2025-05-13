@@ -454,7 +454,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
 
   Widget _buildPropertyValueDisplay(Property property) {
     Component component = widget.component;
-
     bool canEdit =
         !property.isInput && component.inputConnections[property.index] == null;
 
@@ -517,86 +516,66 @@ class _ComponentWidgetState extends State<ComponentWidget> {
         );
 
       case PortType.NUMERIC:
-        return SizedBox(
-          width: 60,
-          height: 24,
-          child: TextField(
-            enabled: canEdit,
-            controller:
-                TextEditingController(text: (property.value as num).toString()),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            textAlign: TextAlign.right,
-            style: const TextStyle(fontSize: 12),
-            decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(4),
-                borderSide: BorderSide(
-                  color: Colors.grey.withOpacity(0.5),
-                ),
-              ),
-              filled: true,
-              fillColor: canEdit ? Colors.white : Colors.grey[200],
+        // Display numeric value without editing capability
+        return Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: Text(
+            (property.value as num).toString(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.teal[800],
             ),
-            onChanged: (newValue) {
-              num? parsed = num.tryParse(newValue);
-              if (parsed != null) {
-                widget.onValueChanged(
-                    widget.component.id, property.index, parsed);
-              }
-            },
           ),
         );
 
       case PortType.STRING:
-        return SizedBox(
-          width: 60,
-          height: 24,
-          child: TextField(
-            enabled: canEdit,
-            controller: TextEditingController(text: property.value as String),
-            textAlign: TextAlign.right,
-            style: const TextStyle(fontSize: 12),
-            decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(4),
-                borderSide: BorderSide(
-                  color: Colors.grey.withOpacity(0.5),
-                ),
-              ),
-              filled: true,
-              fillColor: canEdit ? Colors.white : Colors.grey[200],
+        // Display string value without editing capability
+        return Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: Text(
+            '"${(property.value as String).length > 10 ? '${(property.value as String).substring(0, 10)}...' : property.value as String}"',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange[800],
             ),
-            onChanged: (newValue) {
-              widget.onValueChanged(
-                  widget.component.id, property.index, newValue);
-            },
           ),
         );
 
       case PortType.ANY:
+        // Display any value type without editing capability
         if (property.value is bool) {
           return Text(
             property.value as bool ? 'true' : 'false',
-            style: const TextStyle(fontSize: 10),
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.purple[800]),
           );
         } else if (property.value is num) {
           return Text(
             (property.value as num).toString(),
-            style: const TextStyle(fontSize: 10),
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.purple[800]),
           );
         } else if (property.value is String) {
           return Text(
-            '"${property.value as String}"',
-            style: const TextStyle(fontSize: 10),
+            '"${(property.value as String).length > 8 ? '${(property.value as String).substring(0, 8)}...' : property.value as String}"',
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.purple[800]),
           );
         } else {
-          return const Text(
+          return Text(
             "null",
-            style: TextStyle(fontSize: 10),
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.purple[800]),
           );
         }
     }

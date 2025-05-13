@@ -8,6 +8,7 @@ import 'package:niagara_links/models/component.dart';
 import '../models/component_type.dart';
 import '../models/point_components.dart';
 import '../models/port.dart';
+import '../models/port_type.dart';
 import '../models/ramp_component.dart';
 import '../models/rectangle.dart';
 import 'manager.dart';
@@ -1203,27 +1204,108 @@ class _FlowScreenState extends State<FlowScreen> {
     TextEditingController nameController =
         TextEditingController(text: component.id);
 
+    Map<int, TextEditingController> propertyControllers = {};
+    List<Property> editableProperties = component.properties
+        .where((prop) =>
+            !prop.isInput &&
+            !component.inputConnections.containsKey(prop.index))
+        .toList();
+
+    for (var property in editableProperties) {
+      if (property.type.type != PortType.BOOLEAN) {
+        String valueText = property.value?.toString() ?? '';
+        propertyControllers[property.index] =
+            TextEditingController(text: valueText);
+      }
+    }
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
             title: const Text('Edit Component'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration:
-                      const InputDecoration(labelText: 'Component Name'),
-                  autofocus: true,
-                ),
-              ],
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration:
+                        const InputDecoration(labelText: 'Component Name'),
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 16),
+                  if (editableProperties.isNotEmpty) ...[
+                    const Text(
+                      'Properties',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    ...editableProperties.map((property) {
+                      if (property.type.type == PortType.BOOLEAN) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: TextField(
+                          controller: propertyControllers[property.index],
+                          decoration: InputDecoration(
+                            labelText: '${property.name} Value',
+                            helperText: 'Type: ${property.type.type}',
+                          ),
+                          keyboardType: property.type.type == PortType.NUMERIC
+                              ? TextInputType.number
+                              : TextInputType.text,
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  String newName = nameController.text.trim();
+                  if (newName.isNotEmpty && newName != component.id) {
+                    component.id = newName;
+                  }
+
+                  for (var property in editableProperties) {
+                    if (property.type.type != PortType.BOOLEAN &&
+                        propertyControllers.containsKey(property.index)) {
+                      String newValueText =
+                          propertyControllers[property.index]!.text;
+
+                      dynamic newValue;
+
+                      if (property.type.type == PortType.NUMERIC) {
+                        newValue = num.tryParse(newValueText) ?? property.value;
+                      } else if (property.type.type == PortType.STRING) {
+                        newValue = newValueText;
+                      } else if (property.type.type == PortType.ANY) {
+                        newValue = num.tryParse(newValueText);
+                        newValue ??= newValueText;
+                      }
+
+                      if (newValue != property.value) {
+                        _handleValueChanged(
+                            component.id, property.index, newValue);
+                      }
+                    }
+                  }
+
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+                child: const Text('Save'),
               ),
             ],
           );
