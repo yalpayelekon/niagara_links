@@ -597,7 +597,7 @@ class _FlowScreenState extends State<FlowScreen> {
                       Offset? canvasPosition =
                           getPosition(details.globalPosition);
                       if (canvasPosition != null) {
-                        print("Canvas position onTapDown: $canvasPosition");
+                        //print("Canvas position onTapDown: $canvasPosition");
                         setState(() {
                           _selectionBoxStart = canvasPosition;
                           _isDraggingSelectionBox = false;

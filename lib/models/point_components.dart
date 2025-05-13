@@ -42,7 +42,7 @@ class PointComponent extends Component {
         properties.add(Property.withDefaultValue(
             name: "Output",
             index: 0,
-            isInput: false,
+            isInput: true,
             type: PortType(PortType.BOOLEAN)));
         break;
 
@@ -50,7 +50,7 @@ class PointComponent extends Component {
         properties.add(Property.withDefaultValue(
             name: "Output",
             index: 0,
-            isInput: false,
+            isInput: true,
             type: PortType(PortType.NUMERIC)));
         break;
 
@@ -58,7 +58,7 @@ class PointComponent extends Component {
         properties.add(Property.withDefaultValue(
             name: "Output",
             index: 0,
-            isInput: false,
+            isInput: true,
             type: PortType(PortType.STRING)));
         break;
     }

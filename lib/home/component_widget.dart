@@ -516,7 +516,6 @@ class _ComponentWidgetState extends State<ComponentWidget> {
         );
 
       case PortType.NUMERIC:
-        // Display numeric value without editing capability
         return Padding(
           padding: const EdgeInsets.only(right: 8.0),
           child: Text(
@@ -530,21 +529,26 @@ class _ComponentWidgetState extends State<ComponentWidget> {
         );
 
       case PortType.STRING:
-        // Display string value without editing capability
-        return Padding(
+        return Container(
+          width: 60,
           padding: const EdgeInsets.only(right: 8.0),
-          child: Text(
-            '"${(property.value as String).length > 10 ? '${(property.value as String).substring(0, 10)}...' : property.value as String}"',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Colors.orange[800],
+          child: Tooltip(
+            message: property.value as String,
+            child: Text(
+              '"${(property.value as String).length > 6 ? '${(property.value as String).substring(0, 6)}...' : property.value as String}"',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange[800],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
             ),
           ),
         );
 
       case PortType.ANY:
-        // Display any value type without editing capability
         if (property.value is bool) {
           return Text(
             property.value as bool ? 'true' : 'false',
